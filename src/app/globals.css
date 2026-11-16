@@ -1,26 +1,215 @@
 @import "tailwindcss";
+/* The Industry design system sits in the components layer so Tailwind
+   utilities can refine it, while Tailwind's preflight stays underneath. */
+@import "../styles/industry.css" layer(components);
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* `dark:` utilities follow the app theme (<html data-theme>), not only the OS setting. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+ * Design tokens from the Industry design system (design-reference/_ds/…/styles.css).
+ * Declared through @theme so they are both CSS variables (var(--color-accent))
+ * and Tailwind utilities (bg-accent, text-neutral-700, border-divider).
+ * `static` keeps every variable in the output even if no utility uses it.
+ */
+@theme static {
+  --color-*: initial;
+
+  --color-bg: #f2f2f3;
+  --color-surface: #e9e9ea;
+  --color-text: #1d1f20;
+  --color-accent: #5980a6;
+  --color-accent-2: #728fab;
+  --color-divider: color-mix(in srgb, #1d1f20 16%, transparent);
+  --color-hairline: color-mix(in srgb, #1d1f20 8%, transparent);
+  --color-scrim: #2b2b2d;
+  --color-transparent: transparent;
+
+  --color-neutral-100: #f5f5f8;
+  --color-neutral-200: #e7e7ea;
+  --color-neutral-300: #d4d4d7;
+  --color-neutral-400: #b7b7ba;
+  --color-neutral-500: #98989b;
+  --color-neutral-600: #7a7a7d;
+  --color-neutral-700: #5d5d60;
+  --color-neutral-800: #424244;
+  --color-neutral-900: #2b2b2d;
+
+  --color-accent-100: #eef6ff;
+  --color-accent-200: #d6ebff;
+  --color-accent-300: #b5d9fd;
+  --color-accent-400: #94bce3;
+  --color-accent-500: #749dc4;
+  --color-accent-600: #597ea3;
+  --color-accent-700: #416180;
+  --color-accent-800: #2c455d;
+  --color-accent-900: #1d2d3d;
+
+  --color-accent-2-100: #eef6ff;
+  --color-accent-2-200: #d6ebff;
+  --color-accent-2-300: #bdd8f2;
+  --color-accent-2-400: #9ebbd8;
+  --color-accent-2-500: #7e9cb8;
+  --color-accent-2-600: #627d98;
+  --color-accent-2-700: #486077;
+  --color-accent-2-800: #314457;
+  --color-accent-2-900: #1f2d3a;
+
+  /* Semantic status tints used by the SalesFlow prototype (muted OKLCH). */
+  --color-success-100: oklch(0.94 0.045 155);
+  --color-success-700: oklch(0.42 0.08 155);
+  --color-success-800: oklch(0.38 0.08 155);
+  --color-warning-100: oklch(0.94 0.06 85);
+  --color-warning-800: oklch(0.42 0.09 70);
+  --color-danger-50: oklch(0.96 0.02 25);
+  --color-danger-100: oklch(0.93 0.045 25);
+  --color-danger-300: oklch(0.75 0.08 25);
+  --color-danger-500: oklch(0.55 0.15 25);
+  --color-danger-600: oklch(0.5 0.15 25);
+  --color-danger-700: oklch(0.48 0.15 25);
+  --color-danger-800: oklch(0.45 0.14 25);
+  --color-danger-900: oklch(0.42 0.13 25);
+
+  --font-heading: var(--font-barlow-condensed), system-ui, sans-serif;
+  --font-body: var(--font-barlow), system-ui, sans-serif;
+
+  --breakpoint-nav: 900px;
+  --breakpoint-xw: 1180px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+ * Dark theme. Same token names, so every component and utility follows.
+ * The neutral and accent ramps are inverted (100 = deepest tint, 900 = lightest)
+ * because components pair `-100` backgrounds with `-700/-800` text.
+ * <html data-theme> is set before paint by the script in src/app/layout.tsx.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #17181a;
+  --color-surface: #212225;
+  --color-text: #e4e4e7;
+  --color-accent: #7ea3c8;
+  --color-accent-2: #8fa8c0;
+  --color-divider: color-mix(in srgb, #e4e4e7 16%, transparent);
+  --color-hairline: color-mix(in srgb, #e4e4e7 8%, transparent);
+  --color-scrim: #000000;
+
+  --color-neutral-100: #222326;
+  --color-neutral-200: #2c2d30;
+  --color-neutral-300: #3a3b3e;
+  --color-neutral-400: #535458;
+  --color-neutral-500: #6f7074;
+  --color-neutral-600: #8b8c90;
+  --color-neutral-700: #a6a7ab;
+  --color-neutral-800: #c3c3c7;
+  --color-neutral-900: #e1e1e4;
+
+  --color-accent-100: #1c2a38;
+  --color-accent-200: #233649;
+  --color-accent-300: #2d4660;
+  --color-accent-400: #3e5e7e;
+  --color-accent-500: #587b9e;
+  --color-accent-600: #6c91b6;
+  --color-accent-700: #9cbedf;
+  --color-accent-800: #b9d4ee;
+  --color-accent-900: #d7e8f8;
+
+  --color-accent-2-100: #1d2833;
+  --color-accent-2-200: #25323f;
+  --color-accent-2-300: #304153;
+  --color-accent-2-400: #445a70;
+  --color-accent-2-500: #5e778f;
+  --color-accent-2-600: #7891aa;
+  --color-accent-2-700: #a0b6ca;
+  --color-accent-2-800: #bdcfe0;
+  --color-accent-2-900: #dae5f0;
+
+  --color-success-100: oklch(0.3 0.05 155);
+  --color-success-700: oklch(0.78 0.1 155);
+  --color-success-800: oklch(0.83 0.09 155);
+  --color-warning-100: oklch(0.32 0.06 80);
+  --color-warning-800: oklch(0.86 0.1 85);
+  --color-danger-50: oklch(0.25 0.03 25);
+  --color-danger-100: oklch(0.31 0.06 25);
+  --color-danger-300: oklch(0.5 0.1 25);
+  --color-danger-500: oklch(0.66 0.15 25);
+  --color-danger-600: oklch(0.62 0.16 25);
+  --color-danger-700: oklch(0.73 0.14 25);
+  --color-danger-800: oklch(0.79 0.12 25);
+  --color-danger-900: oklch(0.84 0.1 25);
+
+  --shadow-sm: 0 1px 2px color-mix(in srgb, #000 40%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, #000 45%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, #000 55%, transparent);
+
+  background: var(--color-bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Prototype page-level rules (SalesFlow.dc.html <helmet>). */
+@layer components {
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    font-size: 14px;
   }
-}
+  a {
+    color: var(--color-accent-700);
+  }
+  a:hover {
+    color: var(--color-accent-900);
+  }
+  button {
+    font: inherit;
+    color: inherit;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Corner registration marks for .blueprint frames are rendered by <Corners />. */
+
+  .page-title {
+    margin: 0;
+    font-size: 32px;
+  }
+  .page-sub {
+    margin: 2px 0 0;
+    font-size: 13px;
+  }
+  .panel-title {
+    margin: 0;
+    font-size: 19px;
+  }
+  .panel-note {
+    font-size: 12px;
+    color: var(--color-neutral-700);
+  }
+  .kicker {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-neutral-700);
+  }
+  .field-error {
+    font-size: 12px;
+    color: var(--color-danger-700);
+    margin-top: 4px;
+  }
+  .input[aria-invalid="true"] {
+    border-color: var(--color-danger-500);
+  }
+  .input-sm {
+    min-height: 32px;
+    padding: 4px 8px;
+  }
+  .table td.num,
+  .table th.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .table tr.clickable {
+    cursor: pointer;
+  }
+  .cur-suffix {
+    color: var(--color-neutral-700);
+    font-size: 12px;
+  }
 }

@@ -1,0 +1,19 @@
+# Local development database for SalesFlow (from the approved database starter).
+# Host port 5433 avoids clashing with a locally installed PostgreSQL on 5432.
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: salesflow
+      POSTGRES_PASSWORD: salesflow_dev
+      POSTGRES_DB: salesflow
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - salesflow_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salesflow -d salesflow"]
+      interval: 3s
+      retries: 15
+volumes:
+  salesflow_pg:

@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  SALES_MANAGER
+  SALES_REPRESENTATIVE
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+}
+
+enum BusinessType {
+  SUPERMARKET
+  GROCERY
+  RESTAURANT
+  HOTEL
+  WHOLESALER
+  OTHER
+}
+
+enum BusinessSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum AddressType {
+  BILLING
+  DELIVERY
+  BOTH
+}
+
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSING
+  DELIVERED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  ISSUED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum AIMessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+model User {
+  id            String           @id @default(uuid()) @db.Uuid
+  email         String           @unique @db.VarChar(255)
+  passwordHash  String           @map("password_hash") @db.VarChar(255)
+  role          UserRole
+  isActive      Boolean          @default(true) @map("is_active")
+  employee      Employee?
+  conversations AIConversation[]
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Employee {
+  id                String     @id @default(uuid()) @db.Uuid
+  userId            String?    @unique @map("user_id") @db.Uuid
+  user              User?      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  firstName         String     @map("first_name") @db.VarChar(100)
+  lastName          String     @map("last_name") @db.VarChar(100)
+  phone             String?    @db.VarChar(30)
+  isActive          Boolean    @default(true) @map("is_active")
+  assignedCustomers Customer[]
+  orders            Order[]
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
+
+model Customer {
+  id            String            @id @default(uuid()) @db.Uuid
+  businessName  String            @map("business_name") @db.VarChar(255)
+  nipt          String            @unique @db.VarChar(20)
+  businessType  BusinessType      @map("business_type")
+  businessSize  BusinessSize?     @map("business_size")
+  email         String?           @db.VarChar(255)
+  phone         String?           @db.VarChar(30)
+  city          String            @db.VarChar(100)
+  municipality  String?           @db.VarChar(100)
+  status        CustomerStatus    @default(ACTIVE)
+  assignedRepId String?           @map("assigned_rep_id") @db.Uuid
+  assignedRep   Employee?         @relation(fields: [assignedRepId], references: [id], onDelete: Restrict)
+  contacts      CustomerContact[]
+  addresses     CustomerAddress[]
+  orders        Order[]
+  registeredAt  DateTime          @default(now()) @map("registered_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+
+  @@index([assignedRepId, status])
+  @@index([city])
+  @@map("customers")
+}
+
+model CustomerContact {
+  id         String   @id @default(uuid()) @db.Uuid
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  fullName   String   @map("full_name") @db.VarChar(150)
+  jobTitle   String?  @map("job_title") @db.VarChar(100)
+  email      String?  @db.VarChar(255)
+  phone      String?  @db.VarChar(30)
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([customerId])
+  @@map("customer_contacts")
+}
+
+model CustomerAddress {
+  id           String      @id @default(uuid()) @db.Uuid
+  customerId   String      @map("customer_id") @db.Uuid
+  customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  label        String?     @db.VarChar(100)
+  type         AddressType @default(DELIVERY)
+  street       String      @db.VarChar(255)
+  city         String      @db.VarChar(100)
+  municipality String?     @db.VarChar(100)
+  postalCode   String?     @map("postal_code") @db.VarChar(20)
+  isDefault    Boolean     @default(false) @map("is_default")
+  orders       Order[]
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@unique([id, customerId])
+  @@index([customerId])
+  @@map("customer_addresses")
+}
+
+model Category {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String     @unique @db.VarChar(120)
+  parentId  String?    @map("parent_id") @db.Uuid
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("CategoryTree")
+  products  Product[]
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  @@index([parentId])
+  @@map("categories")
+}
+
+model Product {
+  id            String      @id @default(uuid()) @db.Uuid
+  sku           String      @unique @db.VarChar(60)
+  name          String      @db.VarChar(255)
+  categoryId    String      @map("category_id") @db.Uuid
+  category      Category    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  unit          String      @db.VarChar(30)
+  defaultNetAll Decimal     @map("default_net_all") @db.Decimal(18, 4)
+  vatRate       Decimal     @map("vat_rate") @db.Decimal(5, 2)
+  isActive      Boolean     @default(true) @map("is_active")
+  orderItems    OrderItem[]
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([categoryId, isActive])
+  @@map("products")
+}
+
+model Currency {
+  code          String         @id @db.VarChar(3)
+  name          String         @db.VarChar(50)
+  minorUnits    Int            @default(2) @map("minor_units")
+  isActive      Boolean        @default(true) @map("is_active")
+  orders        Order[]
+  invoices      Invoice[]
+  payments      Payment[]
+  exchangeRates ExchangeRate[]
+
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id           String   @id @default(uuid()) @db.Uuid
+  currencyCode String   @map("currency_code") @db.VarChar(3)
+  currency     Currency @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  allPerUnit   Decimal  @map("all_per_unit") @db.Decimal(20, 8)
+  effectiveAt  DateTime @map("effective_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([currencyCode, effectiveAt])
+  @@index([effectiveAt])
+  @@map("exchange_rates")
+}
+
+model Order {
+  id                String           @id @default(uuid()) @db.Uuid
+  orderNumber       String           @unique @map("order_number") @db.VarChar(40)
+  customerId        String           @map("customer_id") @db.Uuid
+  customer          Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  salesRepId        String           @map("sales_rep_id") @db.Uuid
+  salesRep          Employee         @relation(fields: [salesRepId], references: [id], onDelete: Restrict)
+  deliveryAddressId String?          @map("delivery_address_id") @db.Uuid
+  deliveryAddress   CustomerAddress? @relation(fields: [deliveryAddressId, customerId], references: [id, customerId], onDelete: Restrict)
+  deliverySnapshot  Json?            @map("delivery_snapshot")
+  currencyCode      String           @map("currency_code") @db.VarChar(3)
+  currency          Currency         @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  allPerUnit        Decimal          @map("all_per_unit") @db.Decimal(20, 8)
+  status            OrderStatus      @default(DRAFT)
+  orderDate         DateTime         @default(now()) @map("order_date")
+  subtotalNet       Decimal          @default(0) @map("subtotal_net") @db.Decimal(18, 2)
+  discountTotal     Decimal          @default(0) @map("discount_total") @db.Decimal(18, 2)
+  taxableTotal      Decimal          @default(0) @map("taxable_total") @db.Decimal(18, 2)
+  vatTotal          Decimal          @default(0) @map("vat_total") @db.Decimal(18, 2)
+  grandTotal        Decimal          @default(0) @map("grand_total") @db.Decimal(18, 2)
+  items             OrderItem[]
+  invoice           Invoice?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  @@index([customerId, orderDate])
+  @@index([salesRepId, orderDate])
+  @@index([status, orderDate])
+  @@index([currencyCode, orderDate])
+  @@map("orders")
+}
+
+model OrderItem {
+  id              String  @id @default(uuid()) @db.Uuid
+  orderId         String  @map("order_id") @db.Uuid
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  productId       String  @map("product_id") @db.Uuid
+  product         Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productSku      String  @map("product_sku") @db.VarChar(60)
+  productName     String  @map("product_name") @db.VarChar(255)
+  unit            String  @db.VarChar(30)
+  quantity        Decimal @db.Decimal(18, 3)
+  unitNetPrice    Decimal @map("unit_net_price") @db.Decimal(18, 4)
+  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(5, 2)
+  vatRate         Decimal @map("vat_rate") @db.Decimal(5, 2)
+  grossNet        Decimal @map("gross_net") @db.Decimal(18, 2)
+  discountAmount  Decimal @map("discount_amount") @db.Decimal(18, 2)
+  taxableAmount   Decimal @map("taxable_amount") @db.Decimal(18, 2)
+  vatAmount       Decimal @map("vat_amount") @db.Decimal(18, 2)
+  lineTotal       Decimal @map("line_total") @db.Decimal(18, 2)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model Invoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  invoiceNumber String        @unique @map("invoice_number") @db.VarChar(50)
+  orderId       String        @unique @map("order_id") @db.Uuid
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  currencyCode  String        @map("currency_code") @db.VarChar(3)
+  currency      Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  allPerUnit    Decimal       @map("all_per_unit") @db.Decimal(20, 8)
+  subtotalNet   Decimal       @map("subtotal_net") @db.Decimal(18, 2)
+  discountTotal Decimal       @map("discount_total") @db.Decimal(18, 2)
+  taxableTotal  Decimal       @map("taxable_total") @db.Decimal(18, 2)
+  vatTotal      Decimal       @map("vat_total") @db.Decimal(18, 2)
+  total         Decimal       @db.Decimal(18, 2)
+  issueDate     DateTime      @map("issue_date") @db.Date
+  dueDate       DateTime      @map("due_date") @db.Date
+  status        InvoiceStatus @default(ISSUED)
+  payments      Payment[]
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([status, dueDate])
+  @@map("invoices")
+}
+
+model Payment {
+  id           String        @id @default(uuid()) @db.Uuid
+  invoiceId    String        @map("invoice_id") @db.Uuid
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  paymentDate  DateTime      @map("payment_date") @db.Date
+  amount       Decimal       @db.Decimal(18, 2)
+  currencyCode String        @map("currency_code") @db.VarChar(3)
+  currency     Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  method       PaymentMethod
+  reference    String?       @db.VarChar(120)
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@index([invoiceId, paymentDate])
+  @@map("payments")
+}
+
+model AIConversation {
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  title     String?     @db.VarChar(200)
+  messages  AIMessage[]
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(uuid()) @db.Uuid
+  conversationId String         @map("conversation_id") @db.Uuid
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Restrict)
+  role           AIMessageRole
+  content        String         @db.Text
+  toolName       String?        @map("tool_name") @db.VarChar(100)
+  toolCallId     String?        @map("tool_call_id") @db.VarChar(150)
+  toolMetadata   Json?          @map("tool_metadata")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}

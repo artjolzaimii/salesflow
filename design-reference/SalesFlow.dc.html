@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-9c942a17-f0cd-46d3-8933-91d1985c3fed/styles.css">
+<script src="_ds/industry-9c942a17-f0cd-46d3-8933-91d1985c3fed/_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--color-bg);font-size:14px}a{color:var(--color-accent-700)}a:hover{color:var(--color-accent-900)}button{font:inherit;color:inherit}</style>
+</helmet>
+<div style="min-height:100vh; background:var(--color-bg); color:var(--color-text); font-family:var(--font-body)">
+<sc-if value="{{ signedOut }}" hint-placeholder-val="{{ false }}">
+<div style="min-height:100vh; display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 420px), 1fr))">
+  <div style="background:var(--color-accent-900); color:var(--color-bg); padding:48px; display:flex; flex-direction:column; justify-content:space-between; gap:40px">
+    <div style="display:flex; align-items:center; gap:10px"><div style="width:30px; height:30px; border:1px solid var(--color-accent-400); display:grid; place-items:center; font-family:var(--font-heading); font-weight:600; font-size:14px">SF</div><span style="font-family:var(--font-heading); font-weight:600; font-size:20px">SalesFlow</span></div>
+    <div style="display:flex; flex-direction:column; gap:12px; max-width:420px"><h1 style="margin:0; font-size:44px; color:var(--color-bg)">Sales management for wholesale and distribution.</h1><p style="margin:0; color:var(--color-accent-300); font-size:15px">Customers, orders, invoices and payments in one ledger, with multi-currency and VAT handled on the server.</p></div>
+    <div style="font-size:12px; color:var(--color-accent-400)">Tiranë · Durrës · Vlorë · Shkodër</div>
+  </div>
+  <div style="display:grid; place-items:center; padding:40px 24px">
+    <form onSubmit="{{ login.onSubmit }}" style="width:min(380px, 100%); display:flex; flex-direction:column; gap:16px" novalidate="">
+      <div><h2 style="margin:0; font-size:30px">Sign in</h2><p class="text-muted" style="margin:4px 0 0; font-size:13px">Use your company account.</p></div>
+      <div class="field"><label for="lg-email">Work email</label><input id="lg-email" class="input" type="email" autocomplete="username" value="{{ login.email }}" onChange="{{ login.set.email }}" placeholder="name@company.al"><sc-if value="{{ login.eE.has }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ login.eE.msg }}</div></sc-if></div>
+      <div class="field"><label for="lg-pw">Password</label><input id="lg-pw" class="input" type="password" autocomplete="current-password" value="{{ login.pw }}" onChange="{{ login.set.pw }}"><sc-if value="{{ login.pE.has }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ login.pE.msg }}</div></sc-if></div>
+      <button type="submit" class="btn btn-primary blueprint" disabled="{{ login.loading }}" style="min-height:40px; font-size:15px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ login.btn }}</button>
+      <p class="text-muted" style="margin:0; font-size:12px">Preview: any valid email and a password of 8+ characters signs in. Production authenticates via POST /api/auth/login.</p>
+    </form>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ signedIn }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex; min-height:100vh">
+  <sc-if value="{{ shell.backdrop }}" hint-placeholder-val="{{ false }}"><div onClick="{{ shell.onCloseNav }}" style="position:fixed; inset:0; background:color-mix(in srgb, var(--color-neutral-900) 40%, transparent); z-index:49"></div></sc-if>
+  <aside aria-label="Main navigation" style="width:{{ shell.sideW }}; display:{{ shell.sideDisp }}; position:{{ shell.sidePos }}; top:0; left:0; height:100vh; flex:none; flex-direction:column; border-right:1px solid var(--color-divider); background:var(--color-bg); z-index:50; overflow-y:auto">
+    <div style="height:56px; display:flex; align-items:center; gap:10px; padding:0 16px; border-bottom:1px solid var(--color-divider); justify-content:{{ shell.navJust }}">
+      <div style="width:28px; height:28px; flex:none; border:1px solid var(--color-accent); color:var(--color-accent-800); display:grid; place-items:center; font-family:var(--font-heading); font-weight:600; font-size:13px">SF</div>
+      <sc-if value="{{ shell.labels }}" hint-placeholder-val="{{ true }}"><div style="display:flex; flex-direction:column; line-height:1.1"><span style="font-family:var(--font-heading); font-weight:600; font-size:18px">SalesFlow</span><span style="font-size:11px; color:var(--color-neutral-700)">Wholesale · Albania</span></div></sc-if>
+    </div>
+    <nav style="flex:1; display:flex; flex-direction:column; gap:14px; padding:14px 10px">
+      <sc-for list="{{ nav }}" as="g" hint-placeholder-count="5">
+        <div style="display:flex; flex-direction:column; gap:2px">
+          <sc-if value="{{ shell.labels }}" hint-placeholder-val="{{ true }}"><div style="font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--color-neutral-700); padding:0 10px 4px">{{ g.label }}</div></sc-if>
+          <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="2">
+            <button type="button" onClick="{{ it.onClick }}" title="{{ it.tip }}" aria-label="{{ it.label }}" style="display:flex; align-items:center; gap:10px; width:100%; min-height:34px; padding:6px 10px; border:0; border-left:2px solid {{ it.bar }}; background:{{ it.bg }}; color:{{ it.fg }}; font-size:14px; font-weight:{{ it.weight }}; cursor:pointer; text-align:left; justify-content:{{ shell.navJust }}" style-hover="background:color-mix(in srgb, var(--color-accent) 10%, transparent)">{{ it.icon }}<sc-if value="{{ shell.labels }}" hint-placeholder-val="{{ true }}"><span>{{ it.label }}</span></sc-if></button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="border-top:1px solid var(--color-divider); padding:10px; display:flex; flex-direction:column; gap:8px">
+      <sc-if value="{{ shell.labels }}" hint-placeholder-val="{{ true }}"><div style="font-size:11px; line-height:1.4; color:var(--color-neutral-700); padding:0 4px"><span class="tag tag-accent" style="margin-bottom:4px">Preview mode</span><div>Fictional fixtures. Not connected to the database.</div></div></sc-if>
+      <sc-if value="{{ shell.wide }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-ghost" onClick="{{ shell.onCollapse }}" aria-label="{{ shell.collapseLabel }}" title="{{ shell.collapseLabel }}" style="justify-content:{{ shell.navJust }}; color:var(--color-neutral-700); font-family:var(--font-body); font-weight:400">{{ icons.panel }}<sc-if value="{{ shell.labels }}" hint-placeholder-val="{{ true }}"><span>Collapse</span></sc-if></button></sc-if>
+    </div>
+  </aside>
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column">
+    <header style="height:56px; position:sticky; top:0; z-index:30; background:var(--color-bg); border-bottom:1px solid var(--color-divider); display:flex; align-items:center; gap:12px; padding:0 20px">
+      <sc-if value="{{ shell.narrow }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon btn-secondary" onClick="{{ shell.onMenu }}" aria-label="Open navigation">{{ icons.menu }}</button></sc-if>
+      <nav aria-label="Breadcrumb" style="display:flex; align-items:center; gap:8px; font-size:13px; min-width:0; flex:1 1 auto; white-space:nowrap; overflow-x:auto; scrollbar-width:none">
+        <sc-for list="{{ crumbs }}" as="c" hint-placeholder-count="2"><sc-if value="{{ c.sep }}" hint-placeholder-val="{{ false }}"><span style="color:var(--color-neutral-500)">/</span></sc-if><span onClick="{{ c.onClick }}" style="font-weight:{{ c.weight }}; color:{{ c.color }}; cursor:{{ c.cursor }}; flex:none">{{ c.t }}</span></sc-for>
+        <sc-if value="{{ top.scoped }}" hint-placeholder-val="{{ false }}"><span class="tag tag-neutral" style="margin-left:4px">{{ top.scopeNote }}</span></sc-if>
+      </nav>
+      <div style="position:relative; flex:0 1 300px; min-width:150px">
+        <div style="position:absolute; left:10px; top:10px; color:var(--color-neutral-600); pointer-events:none">{{ icons.search }}</div>
+        <input class="input" type="search" aria-label="Search customers, orders, invoices" placeholder="Search customers, orders, invoices" value="{{ search.q }}" onChange="{{ search.onChange }}" onFocus="{{ search.onFocus }}" onBlur="{{ search.onBlur }}" style="padding-left:32px; background:transparent">
+        <sc-if value="{{ search.open }}" hint-placeholder-val="{{ false }}">
+          <div role="listbox" style="position:absolute; top:42px; left:0; right:0; min-width:300px; background:var(--color-bg); border:1px solid var(--color-divider); box-shadow:var(--shadow-md); z-index:60; padding:6px 0">
+            <sc-for list="{{ search.results }}" as="r" hint-placeholder-count="0"><div role="option" onMouseDown="{{ r.onPick }}" style="display:flex; gap:10px; align-items:baseline; padding:7px 12px; cursor:pointer" style-hover="background:var(--color-accent-100)"><span style="font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-700); width:56px; flex:none">{{ r.kind }}</span><span style="display:flex; flex-direction:column; min-width:0"><span style="font-weight:500">{{ r.t }}</span><span style="font-size:12px; color:var(--color-neutral-700)">{{ r.sub }}</span></span></div></sc-for>
+            <sc-if value="{{ search.none }}" hint-placeholder-val="{{ false }}"><div style="padding:10px 12px; font-size:13px; color:var(--color-neutral-700)">No matches in your accessible records.</div></sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <sc-if value="{{ top.canOrder }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ top.onNewOrder }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}<sc-if value="{{ shell.wide }}" hint-placeholder-val="{{ true }}"><span>New order</span></sc-if></button></sc-if>
+      <sc-if value="{{ top.canPayQuick }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ top.onQuickPay }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}<sc-if value="{{ shell.wide }}" hint-placeholder-val="{{ true }}"><span>Register payment</span></sc-if></button></sc-if>
+      <div style="position:relative">
+        <button type="button" class="btn btn-icon btn-secondary" onClick="{{ top.onBell }}" aria-label="Notifications" style="position:relative">{{ icons.bell }}<sc-if value="{{ top.hasNotes }}" hint-placeholder-val="{{ false }}"><span style="position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 4px; background:oklch(0.5 0.15 25); color:var(--color-bg); font-size:11px; display:grid; place-items:center; font-variant-numeric:tabular-nums">{{ top.noteCount }}</span></sc-if></button>
+        <sc-if value="{{ top.notifOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; right:0; top:44px; width:340px; background:var(--color-bg); border:1px solid var(--color-divider); box-shadow:var(--shadow-md); z-index:60">
+            <div style="padding:10px 14px; border-bottom:1px solid var(--color-divider); font-family:var(--font-heading); font-weight:600; font-size:16px">Needs attention</div>
+            <sc-for list="{{ top.notes }}" as="n" hint-placeholder-count="0"><div onClick="{{ n.onClick }}" style="padding:10px 14px; border-bottom:1px solid color-mix(in srgb, var(--color-text) 8%, transparent); cursor:pointer; display:flex; flex-direction:column; gap:2px" style-hover="background:var(--color-accent-100)"><span style="font-weight:500; font-size:13px">{{ n.t }}</span><span style="font-size:12px; color:var(--color-neutral-700)">{{ n.sub }}</span></div></sc-for>
+            <sc-if value="{{ top.hasNotes }}" hint-placeholder-val="{{ true }}"><div style="padding:8px 14px; font-size:11px; color:var(--color-neutral-700)">Derived from overdue invoices and confirmed orders.</div></sc-if>
+          </div>
+        </sc-if>
+      </div>
+      <div style="position:relative">
+        <button type="button" onClick="{{ top.onUser }}" aria-label="Account menu" style="display:flex; align-items:center; gap:8px; border:0; background:transparent; cursor:pointer; padding:4px">
+          <span style="width:32px; height:32px; border:1px solid var(--color-divider); display:grid; place-items:center; font-family:var(--font-heading); font-weight:600; font-size:13px; color:var(--color-accent-800)">{{ top.ini }}</span>
+          <sc-if value="{{ shell.xwide }}" hint-placeholder-val="{{ true }}"><span style="display:flex; flex-direction:column; align-items:flex-start; line-height:1.15"><span style="font-size:13px; font-weight:500">{{ top.user }}</span><span style="font-size:11px; color:var(--color-neutral-700)">{{ top.title }}</span></span></sc-if>
+          {{ icons.chevD }}
+        </button>
+        <sc-if value="{{ top.userOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; right:0; top:46px; width:240px; background:var(--color-bg); border:1px solid var(--color-divider); box-shadow:var(--shadow-md); z-index:60">
+            <div style="padding:12px 14px; border-bottom:1px solid var(--color-divider)"><div style="font-weight:500">{{ top.user }}</div><div style="font-size:12px; color:var(--color-neutral-700)">{{ top.title }}</div></div>
+            <button type="button" onClick="{{ top.onSignOut }}" style="display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:0; background:transparent; cursor:pointer; font-size:13px" style-hover="background:var(--color-accent-100)">{{ icons.logout }}Sign out</button>
+          </div>
+        </sc-if>
+      </div>
+    </header>
+    <main style="flex:1; padding:{{ shell.pad }}; width:100%; max-width:1520px; margin:0 auto; display:flex; flex-direction:column; gap:24px">
+<sc-if value="{{ is.dashboard }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Dashboard</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">As of {{ today }}. Amounts in ALL; EUR and USD invoices converted at the rate recorded on each invoice.</p></div>
+</div>
+<sc-if value="{{ dash.L.loading }}" hint-placeholder-val="{{ false }}">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:20px"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="4"><div class="blueprint" style="height:112px; padding:16px; display:flex; flex-direction:column; gap:12px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="height:10px; width:40%; background:var(--color-neutral-200)"></div><div style="height:26px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></div></sc-for></div>
+</sc-if>
+<sc-if value="{{ dash.L.error }}" hint-placeholder-val="{{ false }}">
+  <div class="blueprint" role="alert" style="padding:28px; display:flex; gap:14px; align-items:flex-start; color:oklch(0.45 0.14 25)"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.alert }}<div style="display:flex; flex-direction:column; gap:10px; color:var(--color-text)"><div style="font-weight:500">{{ dash.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ dash.onRetry }}" style="align-self:flex-start">Retry</button></div></div>
+</sc-if>
+<sc-if value="{{ dash.L.empty }}" hint-placeholder-val="{{ false }}">
+  <div class="blueprint" style="padding:48px 28px; display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><h3 style="margin:0">No sales activity yet</h3><p class="text-muted" style="margin:0; max-width:420px">KPIs and charts fill in once the first invoice is issued. Start by registering a customer and creating an order.</p></div>
+</sc-if>
+<sc-if value="{{ dash.L.ready }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:20px">
+  <sc-for list="{{ dash.kpis }}" as="k" hint-placeholder-count="4">
+    <div class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:6px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px"><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-700)">{{ k.label }}</span><span style="color:var(--color-accent)">{{ k.icon }}</span></div>
+      <div style="display:flex; align-items:baseline; gap:6px"><span style="font-family:var(--font-heading); font-weight:600; font-size:34px; line-height:1; font-variant-numeric:tabular-nums">{{ k.value }}</span><span style="font-size:13px; color:var(--color-neutral-700)">{{ k.unit }}</span></div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--color-neutral-700)">
+        <sc-if value="{{ k.d.has }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex; align-items:center; gap:4px; color:{{ k.d.color }}; font-weight:500; font-variant-numeric:tabular-nums"><sc-if value="{{ k.d.up }}" hint-placeholder-val="{{ true }}">{{ icons.up }}</sc-if><sc-if value="{{ k.d.down }}" hint-placeholder-val="{{ false }}">{{ icons.down }}</sc-if>{{ k.d.txt }}</span><span>{{ k.d.label }}</span></sc-if>
+        <span>{{ k.sub }}</span>
+      </div>
+    </div>
+  </sc-for>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:20px">
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap"><h3 style="margin:0; font-size:19px">Invoiced revenue by month</h3><span style="font-size:12px; color:var(--color-neutral-700)">Net of VAT · millions ALL · *Nov month to date</span></div>
+    <div style="height:200px; display:flex; align-items:flex-end; gap:8px; border-bottom:1px solid var(--color-divider); padding-top:8px">
+      <sc-for list="{{ dash.months }}" as="m" hint-placeholder-count="11"><div title="{{ m.tip }}" style="flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:stretch; gap:4px; min-width:0"><span style="font-size:10.5px; text-align:center; color:var(--color-neutral-700); font-variant-numeric:tabular-nums">{{ m.v }}</span><div style="height:{{ m.h }}; background:{{ m.bg }}; max-height:85%"></div></div></sc-for>
+    </div>
+    <div style="display:flex; gap:8px; margin-top:-8px"><sc-for list="{{ dash.months }}" as="m" hint-placeholder-count="11"><span style="flex:1; text-align:center; font-size:11px; color:var(--color-neutral-700); min-width:0">{{ m.m }}</span></sc-for></div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Sales by representative</h3><span style="font-size:12px; color:var(--color-neutral-700)">1–16 Nov · net ALL</span></div>
+    <div style="display:flex; flex-direction:column; gap:12px">
+      <sc-for list="{{ dash.repBars }}" as="r" hint-placeholder-count="4"><div style="display:grid; grid-template-columns:120px minmax(0,1fr) 92px; gap:10px; align-items:center; font-size:13px"><span>{{ r.name }}</span><div style="height:12px; background:var(--color-neutral-200)"><div style="height:100%; width:{{ r.w }}; background:var(--color-accent)"></div></div><span style="text-align:right; font-variant-numeric:tabular-nums">{{ r.val }}</span></div></sc-for>
+    </div>
+    <div style="margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:8px; border-top:1px solid var(--color-divider)">
+      <div style="display:flex; justify-content:space-between; align-items:baseline"><h4 style="margin:0; font-size:16px">Invoice payment status</h4><span style="font-size:12px; color:var(--color-neutral-700)">By gross value, all open periods</span></div>
+      <div style="display:flex; height:12px; gap:2px"><sc-for list="{{ dash.dist }}" as="x" hint-placeholder-count="4"><div title="{{ x.label }}" style="width:{{ x.w }}; background:{{ x.color }}"></div></sc-for></div>
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:6px 16px"><sc-for list="{{ dash.dist }}" as="x" hint-placeholder-count="4"><div style="display:flex; align-items:center; gap:8px; font-size:12.5px"><span style="width:10px; height:10px; background:{{ x.color }}; flex:none"></span><span style="flex:1">{{ x.label }} <span style="color:var(--color-neutral-700)">({{ x.count }})</span></span><span style="font-variant-numeric:tabular-nums">{{ x.amt }}</span></div></sc-for></div>
+    </div>
+  </section>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:20px">
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Top products</h3><span style="font-size:12px; color:var(--color-neutral-700)">1–16 Nov · net ALL</span></div>
+    <table class="table"><thead><tr><th style="width:28px">#</th><th>Product</th><th style="text-align:right">Quantity</th><th style="text-align:right">Net sales</th></tr></thead><tbody>
+      <sc-for list="{{ dash.topProducts }}" as="p" hint-placeholder-count="5"><tr><td style="color:var(--color-neutral-700)">{{ p.rank }}</td><td>{{ p.name }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ p.qty }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ p.val }}</td></tr></sc-for>
+    </tbody></table>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Top customers</h3><span style="font-size:12px; color:var(--color-neutral-700)">1–16 Nov · net ALL</span></div>
+    <table class="table"><thead><tr><th style="width:28px">#</th><th>Customer</th><th>City</th><th style="text-align:right">Net sales</th></tr></thead><tbody>
+      <sc-for list="{{ dash.topCustomers }}" as="c" hint-placeholder-count="5"><tr onClick="{{ c.onClick }}" style="cursor:pointer"><td style="color:var(--color-neutral-700)">{{ c.rank }}</td><td style="font-weight:500">{{ c.name }}</td><td>{{ c.city }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ c.val }}</td></tr></sc-for>
+    </tbody></table>
+  </section>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:20px">
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Recent orders</h3>
+    <div style="overflow-x:auto"><table class="table"><thead><tr><th>Order</th><th>Customer</th><th>Date</th><th style="text-align:right">Total</th><th>Status</th></tr></thead><tbody>
+      <sc-for list="{{ dash.recentOrders }}" as="r" hint-placeholder-count="5"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500; white-space:nowrap">{{ r.id }}</td><td>{{ r.cust }}</td><td style="white-space:nowrap">{{ r.date }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.total }} <span style="color:var(--color-neutral-700); font-size:12px">{{ r.cur }}</span></td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}; border:1px solid {{ r.badge.bd }}">{{ r.badge.label }}</span></td></tr></sc-for>
+    </tbody></table></div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Recently issued invoices</h3>
+    <div style="overflow-x:auto"><table class="table"><thead><tr><th>Invoice</th><th>Customer</th><th>Issued</th><th style="text-align:right">Total</th><th>Status</th></tr></thead><tbody>
+      <sc-for list="{{ dash.recentInvoices }}" as="r" hint-placeholder-count="5"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500; white-space:nowrap">{{ r.id }}</td><td>{{ r.cust }}</td><td style="white-space:nowrap">{{ r.issue }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.total }} <span style="color:var(--color-neutral-700); font-size:12px">{{ r.cur }}</span></td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td></tr></sc-for>
+    </tbody></table></div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Outstanding invoices</h3>
+    <div style="overflow-x:auto"><table class="table"><thead><tr><th>Invoice</th><th>Customer</th><th>Due</th><th style="text-align:right">Outstanding</th><th>Status</th></tr></thead><tbody>
+      <sc-for list="{{ dash.outstanding }}" as="r" hint-placeholder-count="5"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500; white-space:nowrap">{{ r.id }}</td><td>{{ r.cust }}</td><td style="white-space:nowrap">{{ r.due }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.out }} <span style="color:var(--color-neutral-700); font-size:12px">{{ r.cur }}</span></td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td></tr></sc-for>
+    </tbody></table></div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Recent payments</h3>
+    <div style="overflow-x:auto"><table class="table"><thead><tr><th>Reference</th><th>Invoice</th><th>Date</th><th>Method</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+      <sc-for list="{{ dash.recentPayments }}" as="r" hint-placeholder-count="5"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="white-space:nowrap">{{ r.ref }}</td><td style="font-weight:500; white-space:nowrap">{{ r.inv }}</td><td style="white-space:nowrap">{{ r.date }}</td><td>{{ r.method }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.amount }} <span style="color:var(--color-neutral-700); font-size:12px">{{ r.cur }}</span></td></tr></sc-for>
+    </tbody></table></div>
+  </section>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ is.orders }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Orders</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Sales orders from draft through invoicing.</p></div>
+  <sc-if value="{{ top.canOrder }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ top.onNewOrder }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}New order</button></sc-if>
+</div>
+<section class="blueprint" style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+    <input class="input" type="search" aria-label="Search orders" placeholder="Order number or customer" value="{{ ol.f.q }}" onChange="{{ ol.set.q }}" style="width:260px; max-width:100%">
+    <select class="input" aria-label="Status" value="{{ ol.f.status }}" onChange="{{ ol.set.status }}" style="width:auto"><option value="all">All statuses</option><option value="Draft">Draft</option><option value="Confirmed">Confirmed</option><option value="Invoiced">Invoiced</option><option value="Cancelled">Cancelled</option></select>
+    <select class="input" aria-label="Currency" value="{{ ol.f.currency }}" onChange="{{ ol.set.currency }}" style="width:auto"><option value="all">All currencies</option><option value="ALL">ALL</option><option value="EUR">EUR</option><option value="USD">USD</option></select>
+  </div>
+  <sc-if value="{{ ol.loading }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:14px; padding:10px 0"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="6"><div style="height:14px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></sc-for></div></sc-if>
+  <sc-if value="{{ ol.error }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding:28px 0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><div>{{ ol.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ ol.onRetry }}">Retry</button></div></sc-if>
+  <sc-if value="{{ ol.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 0; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center"><h4 style="margin:0">{{ ol.emptyTitle }}</h4><p class="text-muted" style="margin:0; font-size:13px">{{ ol.emptyBody }}</p><sc-if value="{{ ol.showClear }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-ghost" onClick="{{ ol.onClear }}">Clear filters</button></sc-if></div></sc-if>
+  <sc-if value="{{ ol.show }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:820px"><thead><tr><th>Order</th><th>Customer</th><th>Representative</th><th>Date</th><th>Currency</th><th style="text-align:right">Total</th><th>Status</th><th style="width:60px"></th></tr></thead><tbody>
+      <sc-for list="{{ ol.rows }}" as="r" hint-placeholder-count="8"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500; white-space:nowrap">{{ r.id }}</td><td>{{ r.cust }}</td><td>{{ r.rep }}</td><td style="white-space:nowrap">{{ r.date }}</td><td>{{ r.cur }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.total }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}; border:1px solid {{ r.badge.bd }}">{{ r.badge.label }}</span></td><td style="text-align:right"><button type="button" class="btn btn-ghost" onClick="{{ r.onOpen }}" style="font-size:13px">View</button></td></tr></sc-for>
+    </tbody></table></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13px; color:var(--color-neutral-700)"><span style="font-variant-numeric:tabular-nums">{{ ol.pager.label }}</span><div style="display:flex; gap:6px; align-items:center"><span>{{ ol.pager.page }}</span><button type="button" class="btn btn-icon btn-secondary" aria-label="Previous page" disabled="{{ ol.pager.prevDis }}" onClick="{{ ol.pager.onPrev }}">{{ icons.chevL }}</button><button type="button" class="btn btn-icon btn-secondary" aria-label="Next page" disabled="{{ ol.pager.nextDis }}" onClick="{{ ol.pager.onNext }}">{{ icons.chevR }}</button></div></div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ is.newOrder }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">New order</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Enter lines top to bottom. Press Enter in any line field to add the next line.</p></div>
+  <div style="display:flex; gap:8px"><button type="button" class="btn btn-ghost" onClick="{{ no.onDiscard }}">Discard</button><button type="button" class="btn btn-secondary" onClick="{{ no.onDraft }}">Save as draft</button><button type="button" class="btn btn-primary blueprint" onClick="{{ no.onConfirm }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.check }}Confirm order</button></div>
+</div>
+<sc-if value="{{ no.hasErr }}" hint-placeholder-val="{{ false }}"><div role="alert" style="display:flex; gap:10px; align-items:center; padding:10px 14px; border:1px solid oklch(0.75 0.08 25); background:oklch(0.96 0.02 25); color:oklch(0.42 0.13 25); font-size:13px">{{ icons.alert }}{{ no.err }}</div></sc-if>
+<div style="display:grid; grid-template-columns:{{ no.cols }}; gap:20px; align-items:start">
+  <div style="display:flex; flex-direction:column; gap:20px; min-width:0">
+    <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <h3 style="margin:0; font-size:19px">Order information</h3>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px">
+        <div class="field" style="grid-column:span 2"><label for="no-cust">Customer</label><select id="no-cust" class="input" value="{{ no.d.custId }}" onChange="{{ no.onCust }}"><option value="">Select customer…</option><sc-for list="{{ no.customers }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><sc-if value="{{ no.hasCust }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:var(--color-neutral-700); margin-top:4px">{{ no.custInfo }}</div></sc-if></div>
+        <div class="field"><label for="no-rep">Sales representative</label><select id="no-rep" class="input" value="{{ no.d.repId }}" onChange="{{ no.set.repId }}"><option value="">Select…</option><sc-for list="{{ no.reps }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+        <div class="field"><label for="no-date">Order date</label><input id="no-date" class="input" type="date" value="{{ no.d.date }}" onChange="{{ no.set.date }}"></div>
+        <div class="field" style="grid-column:span 2"><label for="no-addr">Delivery address</label><select id="no-addr" class="input" value="{{ no.d.addr }}" onChange="{{ no.set.addr }}"><sc-for list="{{ no.addrOpts }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+        <div class="field"><label>Currency</label><div class="seg" role="radiogroup" aria-label="Currency"><sc-for list="{{ no.curOpts }}" as="o" hint-placeholder-count="3"><label class="seg-opt"><input type="radio" name="no-cur" checked="{{ o.checked }}" onChange="{{ o.onChange }}">{{ o.label }}</label></sc-for></div></div>
+        <div class="field"><label for="no-rate">Exchange rate (ALL per 1 {{ no.cur }})</label><input id="no-rate" class="input" inputmode="decimal" value="{{ no.d.rate }}" onChange="{{ no.set.rate }}" disabled="{{ no.rateDis }}" style="font-variant-numeric:tabular-nums"></div>
+      </div>
+    </section>
+    <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Order items</h3><span style="font-size:12px; color:var(--color-neutral-700)">Unit prices in {{ no.cur }}, excluding VAT</span></div>
+      <div style="overflow-x:auto"><table class="table" style="min-width:860px"><thead><tr><th style="width:28px">#</th><th>Product</th><th>SKU</th><th style="width:96px; text-align:right">Qty</th><th style="width:120px; text-align:right">Unit price</th><th style="width:84px; text-align:right">Disc. %</th><th style="width:56px; text-align:right">VAT</th><th style="width:130px; text-align:right">Line total</th><th style="width:40px"></th></tr></thead><tbody>
+        <sc-for list="{{ no.lines }}" as="l" hint-placeholder-count="1"><tr style="background:transparent">
+          <td style="color:var(--color-neutral-700)">{{ l.n }}</td>
+          <td><select class="input" aria-label="Product" value="{{ l.pid }}" onChange="{{ l.onProd }}" onKeyDown="{{ l.onKey }}" style="min-height:32px; padding:4px 8px"><option value="">Select product…</option><sc-for list="{{ no.products }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></td>
+          <td style="font-size:12.5px; color:var(--color-neutral-700); white-space:nowrap">{{ l.sku }}</td>
+          <td><div style="display:flex; align-items:center; gap:4px"><input class="input" aria-label="Quantity" inputmode="decimal" value="{{ l.qty }}" onChange="{{ l.onQty }}" onKeyDown="{{ l.onKey }}" style="min-height:32px; padding:4px 8px; text-align:right; font-variant-numeric:tabular-nums; border-color:{{ l.qB }}"><span style="font-size:11px; color:var(--color-neutral-700); width:34px">{{ l.unit }}</span></div></td>
+          <td><input class="input" aria-label="Unit price" inputmode="decimal" value="{{ l.price }}" onChange="{{ l.onPrice }}" onKeyDown="{{ l.onKey }}" style="min-height:32px; padding:4px 8px; text-align:right; font-variant-numeric:tabular-nums; border-color:{{ l.pB }}"></td>
+          <td><input class="input" aria-label="Discount percent" inputmode="decimal" value="{{ l.disc }}" onChange="{{ l.onDisc }}" onKeyDown="{{ l.onKey }}" style="min-height:32px; padding:4px 8px; text-align:right; font-variant-numeric:tabular-nums; border-color:{{ l.dB }}"></td>
+          <td style="text-align:right; font-variant-numeric:tabular-nums">{{ l.vat }}</td>
+          <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:500; white-space:nowrap">{{ l.total }}</td>
+          <td><sc-if value="{{ l.canRemove }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon btn-ghost" aria-label="Remove line" onClick="{{ l.onRemove }}" style="width:30px; height:30px; color:var(--color-neutral-700)">{{ icons.trash }}</button></sc-if></td>
+        </tr></sc-for>
+      </tbody></table></div>
+      <button type="button" class="btn btn-secondary" onClick="{{ no.onAdd }}" style="align-self:flex-start">{{ icons.plus }}Add line</button>
+    </section>
+  </div>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; position:sticky; top:76px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Order summary</h3><span style="font-size:12px; color:var(--color-neutral-700)">{{ no.nLines }}</span></div>
+    <span class="tag tag-outline" style="align-self:flex-start">Preview calculation</span>
+    <div style="display:flex; flex-direction:column; gap:6px; font-size:14px">
+      <sc-for list="{{ no.sum }}" as="x" hint-placeholder-count="4"><div style="display:flex; justify-content:space-between; gap:12px"><span style="color:var(--color-neutral-700)">{{ x.k }}</span><span style="font-variant-numeric:tabular-nums">{{ x.v }}</span></div></sc-for>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding-top:10px; border-top:1px solid var(--color-divider)"><span style="font-family:var(--font-heading); font-weight:600; font-size:18px">Total</span><span style="font-family:var(--font-heading); font-weight:600; font-size:24px; font-variant-numeric:tabular-nums">{{ no.total }}</span></div>
+    <sc-if value="{{ no.hasEq }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:var(--color-neutral-700); text-align:right; font-variant-numeric:tabular-nums">{{ no.eq }}</div></sc-if>
+    <p style="margin:4px 0 0; font-size:12px; line-height:1.45; color:var(--color-neutral-700)">Computed in integer cents per line for guidance. The server recalculates discounts, VAT and rounding on save; its totals are authoritative.</p>
+  </section>
+</div>
+</sc-if>
+<sc-if value="{{ is.invoices }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Invoices</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Issued invoices are immutable. Payment status is derived from payments and the due date.</p></div>
+  <sc-if value="{{ il.canPay }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-secondary" onClick="{{ il.onPay }}">{{ icons.plus }}Register payment</button></sc-if>
+</div>
+<section class="blueprint" style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+    <input class="input" type="search" aria-label="Search invoices" placeholder="Invoice number or customer" value="{{ il.f.q }}" onChange="{{ il.set.q }}" style="width:240px; max-width:100%">
+    <select class="input" aria-label="Payment status" value="{{ il.f.status }}" onChange="{{ il.set.status }}" style="width:auto"><option value="all">All payment statuses</option><option value="Unpaid">Unpaid</option><option value="Partial">Partial</option><option value="Paid">Paid</option><option value="Overdue">Overdue</option></select>
+    <select class="input" aria-label="Currency" value="{{ il.f.currency }}" onChange="{{ il.set.currency }}" style="width:auto"><option value="all">All currencies</option><option value="ALL">ALL</option><option value="EUR">EUR</option><option value="USD">USD</option></select>
+    <div style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--color-neutral-700)"><span>Issued</span><input class="input" type="date" aria-label="Issued from" value="{{ il.f.from }}" onChange="{{ il.set.from }}" style="width:auto"><span>to</span><input class="input" type="date" aria-label="Issued to" value="{{ il.f.to }}" onChange="{{ il.set.to }}" style="width:auto"></div>
+  </div>
+  <sc-if value="{{ il.loading }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:14px; padding:10px 0"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="6"><div style="height:14px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></sc-for></div></sc-if>
+  <sc-if value="{{ il.error }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding:28px 0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><div>{{ il.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ il.onRetry }}">Retry</button></div></sc-if>
+  <sc-if value="{{ il.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 0; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center"><h4 style="margin:0">{{ il.emptyTitle }}</h4><p class="text-muted" style="margin:0; font-size:13px">{{ il.emptyBody }}</p><sc-if value="{{ il.showClear }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-ghost" onClick="{{ il.onClear }}">Clear filters</button></sc-if></div></sc-if>
+  <sc-if value="{{ il.show }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:960px"><thead><tr><th>Invoice</th><th>Customer</th><th>Issued</th><th>Due</th><th>Cur.</th><th style="text-align:right">Total</th><th style="text-align:right">Paid</th><th style="text-align:right">Outstanding</th><th>Status</th></tr></thead><tbody>
+      <sc-for list="{{ il.rows }}" as="r" hint-placeholder-count="8"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500; white-space:nowrap">{{ r.id }}</td><td>{{ r.cust }}</td><td style="white-space:nowrap">{{ r.issue }}</td><td style="white-space:nowrap">{{ r.due }}</td><td>{{ r.cur }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.total }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; color:var(--color-neutral-700)">{{ r.paid }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; font-weight:500">{{ r.out }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td></tr></sc-for>
+    </tbody></table></div>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; padding:6px 0 4px; font-size:13px; border-top:1px solid var(--color-divider)"><sc-for list="{{ il.totals }}" as="t" hint-placeholder-count="2"><div style="display:flex; gap:10px; align-items:baseline; font-variant-numeric:tabular-nums"><span style="font-weight:600">{{ t.cur }}</span><span style="color:var(--color-neutral-700)">{{ t.n }} · total {{ t.total }} ·</span><span>open {{ t.out }}</span></div></sc-for></div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ is.payments }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Payments</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Payments received against invoices, in the invoice currency.</p></div>
+  <sc-if value="{{ pl.canPay }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ pl.onPay }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}Register payment</button></sc-if>
+</div>
+<section class="blueprint" style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <input class="input" type="search" aria-label="Search payments" placeholder="Reference, invoice or customer" value="{{ pl.q }}" onChange="{{ pl.onQ }}" style="width:280px; max-width:100%">
+  <sc-if value="{{ pl.loading }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:14px; padding:10px 0"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="6"><div style="height:14px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></sc-for></div></sc-if>
+  <sc-if value="{{ pl.error }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding:28px 0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><div>{{ pl.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ pl.onRetry }}">Retry</button></div></sc-if>
+  <sc-if value="{{ pl.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 0; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center"><h4 style="margin:0">{{ pl.emptyTitle }}</h4><p class="text-muted" style="margin:0; font-size:13px">{{ pl.emptyBody }}</p><sc-if value="{{ pl.showClear }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-ghost" onClick="{{ pl.onClear }}">Clear search</button></sc-if></div></sc-if>
+  <sc-if value="{{ pl.show }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:820px"><thead><tr><th>Payment</th><th>Reference</th><th>Invoice</th><th>Customer</th><th>Date</th><th>Method</th><th style="text-align:right">Amount</th><th>Cur.</th></tr></thead><tbody>
+      <sc-for list="{{ pl.rows }}" as="r" hint-placeholder-count="8"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="white-space:nowrap; color:var(--color-neutral-700)">{{ r.id }}</td><td style="font-weight:500; white-space:nowrap">{{ r.ref }}</td><td style="white-space:nowrap">{{ r.inv }}</td><td>{{ r.cust }}</td><td style="white-space:nowrap">{{ r.date }}</td><td>{{ r.method }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap">{{ r.amount }}</td><td>{{ r.cur }}</td></tr></sc-for>
+    </tbody></table></div>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; padding:6px 0 4px; font-size:13px; border-top:1px solid var(--color-divider)"><sc-for list="{{ pl.totals }}" as="t" hint-placeholder-count="2"><div style="display:flex; gap:10px; align-items:baseline; font-variant-numeric:tabular-nums"><span style="font-weight:600">{{ t.cur }}</span><span style="color:var(--color-neutral-700)">{{ t.n }} ·</span><span>{{ t.total }}</span></div></sc-for></div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ is.reports }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Reports</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">{{ rep.basis }}</p></div>
+</div>
+<div style="display:flex; gap:14px 20px; flex-wrap:wrap; align-items:flex-end">
+  <div class="field"><label>Issued from</label><input class="input" type="date" value="{{ rep.f.from }}" onChange="{{ rep.set.from }}" style="width:auto"></div>
+  <div class="field"><label>to</label><input class="input" type="date" value="{{ rep.f.to }}" onChange="{{ rep.set.to }}" style="width:auto"></div>
+  <div class="field"><label>Group by</label><div class="seg" role="radiogroup" aria-label="Group by"><sc-for list="{{ rep.groups }}" as="o" hint-placeholder-count="5"><label class="seg-opt"><input type="radio" name="rg" checked="{{ o.checked }}" onChange="{{ o.onChange }}">{{ o.label }}</label></sc-for></div></div>
+  <div class="field"><label>Currency basis</label><div class="seg" role="radiogroup" aria-label="Currency basis"><sc-for list="{{ rep.curs }}" as="o" hint-placeholder-count="4"><label class="seg-opt"><input type="radio" name="rc" checked="{{ o.checked }}" onChange="{{ o.onChange }}">{{ o.label }}</label></sc-for></div></div>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:20px">
+  <sc-for list="{{ rep.sum }}" as="k" hint-placeholder-count="4"><div class="blueprint" style="padding:14px 16px; display:flex; flex-direction:column; gap:4px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-neutral-700)">{{ k.label }}</span><span style="font-family:var(--font-heading); font-weight:600; font-size:24px; font-variant-numeric:tabular-nums">{{ k.value }}</span></div></sc-for>
+</div>
+<section class="blueprint" style="padding:14px 18px; display:flex; flex-direction:column; gap:10px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Breakdown</h3><span style="font-size:12px; color:var(--color-neutral-700)">{{ rep.count }}</span></div>
+  <sc-if value="{{ rep.noRows }}" hint-placeholder-val="{{ false }}"><div style="padding:32px 0; text-align:center" class="text-muted">No invoices in this range and currency.</div></sc-if>
+  <sc-if value="{{ rep.hasRows }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:720px"><thead><tr><sc-for list="{{ rep.cols }}" as="c" hint-placeholder-count="5"><th style="text-align:{{ c.al }}">{{ c.t }}</th></sc-for><sc-if value="{{ rep.showBar }}" hint-placeholder-val="{{ true }}"><th style="width:22%">Share of net</th></sc-if></tr></thead><tbody>
+      <sc-for list="{{ rep.rows }}" as="r" hint-placeholder-count="5"><tr><sc-for list="{{ r.cells }}" as="c" hint-placeholder-count="5"><td style="text-align:{{ c.al }}; font-variant-numeric:tabular-nums">{{ c.v }}</td></sc-for><sc-if value="{{ rep.showBar }}" hint-placeholder-val="{{ true }}"><td><div style="height:10px; background:var(--color-neutral-200)"><div style="height:100%; width:{{ r.w }}; background:var(--color-accent)"></div></div></td></sc-if></tr></sc-for>
+    </tbody></table></div>
+  </sc-if>
+</section>
+</sc-if>
+<sc-if value="{{ is.customers }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Customers</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Business customers: supermarkets, groceries, restaurants, hotels and cafés.</p></div>
+  <sc-if value="{{ cl.canCreate }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ cl.onNew }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}Register customer</button></sc-if>
+</div>
+<section class="blueprint" style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+    <input class="input" type="search" aria-label="Search customers" placeholder="Name, NIPT or ID" value="{{ cl.f.q }}" onChange="{{ cl.set.q }}" style="width:220px; max-width:100%">
+    <select class="input" aria-label="City" value="{{ cl.f.city }}" onChange="{{ cl.set.city }}" style="width:auto"><option value="all">All cities</option><sc-for list="{{ cOpts.cities }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+    <select class="input" aria-label="Business type" value="{{ cl.f.type }}" onChange="{{ cl.set.type }}" style="width:auto"><option value="all">All types</option><sc-for list="{{ cOpts.types }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+    <select class="input" aria-label="Business size" value="{{ cl.f.size }}" onChange="{{ cl.set.size }}" style="width:auto"><option value="all">All sizes</option><sc-for list="{{ cOpts.sizes }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+    <sc-if value="{{ cl.showRep }}" hint-placeholder-val="{{ true }}"><select class="input" aria-label="Representative" value="{{ cl.f.rep }}" onChange="{{ cl.set.rep }}" style="width:auto"><option value="all">All representatives</option><sc-for list="{{ cOpts.reps }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></sc-if>
+    <select class="input" aria-label="Status" value="{{ cl.f.status }}" onChange="{{ cl.set.status }}" style="width:auto"><option value="all">Active and inactive</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+  </div>
+  <sc-if value="{{ cl.loading }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:14px; padding:10px 0"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="6"><div style="height:14px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></sc-for></div></sc-if>
+  <sc-if value="{{ cl.error }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding:28px 0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><div>{{ cl.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ cl.onRetry }}">Retry</button></div></sc-if>
+  <sc-if value="{{ cl.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 0; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center"><h4 style="margin:0">{{ cl.emptyTitle }}</h4><p class="text-muted" style="margin:0; font-size:13px">{{ cl.emptyBody }}</p><sc-if value="{{ cl.showClear }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-ghost" onClick="{{ cl.onClear }}">Clear filters</button></sc-if></div></sc-if>
+  <sc-if value="{{ cl.show }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:860px"><thead><tr><th>ID</th><th>Business name</th><th>NIPT</th><th>City</th><th>Type</th><th>Representative</th><th>Status</th><th style="width:60px"></th></tr></thead><tbody>
+      <sc-for list="{{ cl.rows }}" as="r" hint-placeholder-count="8"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="color:var(--color-neutral-700); white-space:nowrap">{{ r.id }}</td><td style="font-weight:500">{{ r.name }}</td><td style="font-variant-numeric:tabular-nums">{{ r.nipt }}</td><td>{{ r.city }}</td><td>{{ r.type }} <span style="color:var(--color-neutral-700); font-size:12px">· {{ r.size }}</span></td><td>{{ r.rep }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td><td style="text-align:right"><button type="button" class="btn btn-ghost" onClick="{{ r.onOpen }}" style="font-size:13px">Open</button></td></tr></sc-for>
+    </tbody></table></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; font-size:13px; color:var(--color-neutral-700)"><span style="font-variant-numeric:tabular-nums">{{ cl.pager.label }}</span><div style="display:flex; gap:6px; align-items:center"><span>{{ cl.pager.page }}</span><button type="button" class="btn btn-icon btn-secondary" aria-label="Previous page" disabled="{{ cl.pager.prevDis }}" onClick="{{ cl.pager.onPrev }}">{{ icons.chevL }}</button><button type="button" class="btn btn-icon btn-secondary" aria-label="Next page" disabled="{{ cl.pager.nextDis }}" onClick="{{ cl.pager.onNext }}">{{ icons.chevR }}</button></div></div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ is.customerNew }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Register customer</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Fields marked * are required. NIPT is validated again by the server.</p></div>
+  <div style="display:flex; gap:8px"><button type="button" class="btn btn-ghost" onClick="{{ cfm.onCancel }}">Cancel</button><button type="button" class="btn btn-primary blueprint" onClick="{{ cfm.onSave }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Save customer</button></div>
+</div>
+<sc-if value="{{ cfm.hasErr }}" hint-placeholder-val="{{ false }}"><div role="alert" style="display:flex; gap:10px; align-items:center; padding:10px 14px; border:1px solid oklch(0.75 0.08 25); background:oklch(0.96 0.02 25); color:oklch(0.42 0.13 25); font-size:13px">{{ icons.alert }}{{ cfm.errCount }}</div></sc-if>
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:20px; align-items:start">
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Business information</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px">
+      <div class="field" style="grid-column:1 / -1"><label for="cf-name">Business name *</label><input id="cf-name" class="input" value="{{ cfm.f.name }}" onChange="{{ cfm.set.name }}" style="border-color:{{ cfm.e.name.bd }}"><sc-if value="{{ cfm.e.name.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.name.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-nipt">NIPT / NUIS *</label><input id="cf-nipt" class="input" placeholder="L12345678A" value="{{ cfm.f.nipt }}" onChange="{{ cfm.set.nipt }}" style="border-color:{{ cfm.e.nipt.bd }}; text-transform:uppercase; font-variant-numeric:tabular-nums"><sc-if value="{{ cfm.e.nipt.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.nipt.msg }}</div></sc-if></div>
+      <div class="field"><label>Status</label><div class="seg" role="radiogroup" aria-label="Status"><sc-for list="{{ cfm.statusOpts }}" as="o" hint-placeholder-count="2"><label class="seg-opt"><input type="radio" name="cf-st" checked="{{ o.checked }}" onChange="{{ o.onChange }}">{{ o.label }}</label></sc-for></div></div>
+      <div class="field"><label for="cf-type">Business type *</label><select id="cf-type" class="input" value="{{ cfm.f.type }}" onChange="{{ cfm.set.type }}" style="border-color:{{ cfm.e.type.bd }}"><option value="">Select…</option><sc-for list="{{ cOpts.types }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><sc-if value="{{ cfm.e.type.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.type.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-size">Business size *</label><select id="cf-size" class="input" value="{{ cfm.f.size }}" onChange="{{ cfm.set.size }}" style="border-color:{{ cfm.e.size.bd }}"><option value="">Select…</option><sc-for list="{{ cOpts.sizes }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><sc-if value="{{ cfm.e.size.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.size.msg }}</div></sc-if></div>
+    </div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Contact information</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px">
+      <div class="field"><label for="cf-contact">Contact name *</label><input id="cf-contact" class="input" value="{{ cfm.f.contact }}" onChange="{{ cfm.set.contact }}" style="border-color:{{ cfm.e.contact.bd }}"><sc-if value="{{ cfm.e.contact.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.contact.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-pos">Position</label><input id="cf-pos" class="input" value="{{ cfm.f.position }}" onChange="{{ cfm.set.position }}"></div>
+      <div class="field"><label for="cf-phone">Phone *</label><input id="cf-phone" class="input" type="tel" placeholder="+355 69 123 4567" value="{{ cfm.f.phone }}" onChange="{{ cfm.set.phone }}" style="border-color:{{ cfm.e.phone.bd }}"><sc-if value="{{ cfm.e.phone.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.phone.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-email">Email</label><input id="cf-email" class="input" type="email" value="{{ cfm.f.email }}" onChange="{{ cfm.set.email }}" style="border-color:{{ cfm.e.email.bd }}"><sc-if value="{{ cfm.e.email.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.email.msg }}</div></sc-if></div>
+    </div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Address</h3>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px">
+      <div class="field"><label for="cf-city">City *</label><select id="cf-city" class="input" value="{{ cfm.f.city }}" onChange="{{ cfm.set.city }}" style="border-color:{{ cfm.e.city.bd }}"><option value="">Select…</option><sc-for list="{{ cOpts.cities }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><sc-if value="{{ cfm.e.city.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.city.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-muni">Municipality</label><input id="cf-muni" class="input" value="{{ cfm.f.muni }}" onChange="{{ cfm.set.muni }}"></div>
+      <div class="field" style="grid-column:1 / -1"><label for="cf-street">Street address *</label><input id="cf-street" class="input" value="{{ cfm.f.street }}" onChange="{{ cfm.set.street }}" style="border-color:{{ cfm.e.street.bd }}"><sc-if value="{{ cfm.e.street.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.street.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-postal">Postal code</label><input id="cf-postal" class="input" inputmode="numeric" placeholder="1001" value="{{ cfm.f.postal }}" onChange="{{ cfm.set.postal }}" style="border-color:{{ cfm.e.postal.bd }}"><sc-if value="{{ cfm.e.postal.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.postal.msg }}</div></sc-if></div>
+      <div class="field"><label for="cf-at">Address type</label><select id="cf-at" class="input" value="{{ cfm.f.addrType }}" onChange="{{ cfm.set.addrType }}"><sc-for list="{{ cOpts.addrTypes }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+    </div>
+  </section>
+  <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:14px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <h3 style="margin:0; font-size:19px">Commercial</h3>
+    <div class="field"><label for="cf-rep">Assigned sales representative *</label>
+      <sc-if value="{{ cfm.repLocked }}" hint-placeholder-val="{{ false }}"><input id="cf-rep" class="input" value="{{ cfm.repFixed }}" disabled=""></sc-if>
+      <sc-if value="{{ cl.showRep }}" hint-placeholder-val="{{ true }}"><select id="cf-rep" class="input" value="{{ cfm.f.rep }}" onChange="{{ cfm.set.rep }}" style="border-color:{{ cfm.e.rep.bd }}"><option value="">Select…</option><sc-for list="{{ cOpts.reps }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></sc-if>
+      <sc-if value="{{ cfm.e.rep.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ cfm.e.rep.msg }}</div></sc-if></div>
+    <div class="field"><label for="cf-notes">Customer notes</label><textarea id="cf-notes" class="input" value="{{ cfm.f.notes }}" onChange="{{ cfm.set.notes }}" placeholder="Delivery windows, receiving contact, payment habits"></textarea></div>
+  </section>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasCd }}" hint-placeholder-val="{{ false }}"><sc-if value="{{ is.customerDetail }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div style="display:flex; flex-direction:column; gap:4px"><div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap"><h1 style="margin:0; font-size:32px">{{ cd.name }}</h1><span class="tag" style="background:{{ cd.badge.bg }}; color:{{ cd.badge.fg }}">{{ cd.badge.label }}</span></div><p class="text-muted" style="margin:0; font-size:13px">{{ cd.id }} · NIPT {{ cd.nipt }} · {{ cd.type }}, {{ cd.size }} · {{ cd.city }}</p></div>
+  <div style="display:flex; gap:8px"><button type="button" class="btn btn-ghost" onClick="{{ cd.onBack }}">{{ icons.chevL }}All customers</button><sc-if value="{{ cd.canOrder }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ cd.onNewOrder }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}New order</button></sc-if></div>
+</div>
+<div role="tablist" style="display:flex; gap:4px; border-bottom:1px solid var(--color-divider); overflow-x:auto">
+  <sc-for list="{{ cd.tabs }}" as="t" hint-placeholder-count="6"><button type="button" role="tab" onClick="{{ t.onClick }}" style="border:0; border-bottom:2px solid {{ t.bd }}; background:transparent; padding:8px 12px; margin-bottom:-1px; cursor:pointer; font-size:14px; color:{{ t.fg }}; display:flex; gap:6px; white-space:nowrap">{{ t.label }}<sc-if value="{{ t.hasN }}" hint-placeholder-val="{{ false }}"><span style="font-size:12px; color:var(--color-neutral-700); font-variant-numeric:tabular-nums">{{ t.n }}</span></sc-if></button></sc-for>
+</div>
+<sc-if value="{{ cd.t.overview }}" hint-placeholder-val="{{ true }}">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap:20px; align-items:start">
+    <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <h3 style="margin:0; font-size:19px">Account</h3>
+      <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px"><dt class="text-muted">Representative</dt><dd style="margin:0">{{ cd.rep }}</dd><dt class="text-muted">Payment terms</dt><dd style="margin:0">{{ cd.terms }}</dd><dt class="text-muted">Last order</dt><dd style="margin:0">{{ cd.lastOrder }}</dd><dt class="text-muted">Primary contact</dt><dd style="margin:0">{{ cd.contact }}, {{ cd.position }}</dd><dt class="text-muted">Phone</dt><dd style="margin:0">{{ cd.phone }}</dd><dt class="text-muted">Address</dt><dd style="margin:0">{{ cd.street }}, {{ cd.postal }} {{ cd.city }}</dd><dt class="text-muted">Notes</dt><dd style="margin:0">{{ cd.notesText }}</dd></dl>
+    </section>
+    <section class="blueprint" style="padding:16px 18px; display:flex; flex-direction:column; gap:10px; grid-column:span 1"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div style="display:flex; justify-content:space-between; align-items:baseline"><h3 style="margin:0; font-size:19px">Financial summary</h3><span style="font-size:12px; color:var(--color-neutral-700)">Per currency, not converted</span></div>
+      <sc-if value="{{ cd.noFin }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="margin:0">No invoices issued to this customer yet.</p></sc-if>
+      <sc-if value="{{ cd.hasFin }}" hint-placeholder-val="{{ true }}"><table class="table"><thead><tr><th>Cur.</th><th style="text-align:right">Invoiced</th><th style="text-align:right">Paid</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Overdue</th></tr></thead><tbody><sc-for list="{{ cd.fin }}" as="f" hint-placeholder-count="1"><tr><td style="font-weight:600">{{ f.cur }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ f.inv }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ f.paid }}</td><td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:500">{{ f.out }}</td><td style="text-align:right">{{ f.overdue }}</td></tr></sc-for></tbody></table></sc-if>
+    </section>
+  </div>
+</sc-if>
+<sc-if value="{{ cd.t.contacts }}" hint-placeholder-val="{{ false }}"><section class="blueprint" style="padding:14px 18px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="overflow-x:auto"><table class="table"><thead><tr><th>Name</th><th>Position</th><th>Phone</th><th>Email</th></tr></thead><tbody><tr><td style="font-weight:500">{{ cd.contact }}</td><td>{{ cd.position }}</td><td>{{ cd.phone }}</td><td>{{ cd.email }}</td></tr></tbody></table></div></section></sc-if>
+<sc-if value="{{ cd.t.addresses }}" hint-placeholder-val="{{ false }}"><section class="blueprint" style="padding:14px 18px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="overflow-x:auto"><table class="table"><thead><tr><th>Type</th><th>Street</th><th>Municipality</th><th>City</th><th>Postal code</th></tr></thead><tbody><tr><td>{{ cd.addrType }}</td><td>{{ cd.street }}</td><td>{{ cd.muni }}</td><td>{{ cd.city }}</td><td>{{ cd.postal }}</td></tr></tbody></table></div></section></sc-if>
+<sc-if value="{{ cd.t.orders }}" hint-placeholder-val="{{ false }}"><section class="blueprint" style="padding:14px 18px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <sc-if value="{{ cd.noOrders }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="margin:0; padding:20px 0; text-align:center">No orders for this customer.</p></sc-if>
+  <sc-if value="{{ cd.hasOrders }}" hint-placeholder-val="{{ true }}"><div style="overflow-x:auto"><table class="table" style="min-width:640px"><thead><tr><th>Order</th><th>Date</th><th>Representative</th><th>Cur.</th><th style="text-align:right">Total</th><th>Status</th></tr></thead><tbody><sc-for list="{{ cd.orders }}" as="r" hint-placeholder-count="3"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500">{{ r.id }}</td><td>{{ r.date }}</td><td>{{ r.rep }}</td><td>{{ r.cur }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.total }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}; border:1px solid {{ r.badge.bd }}">{{ r.badge.label }}</span></td></tr></sc-for></tbody></table></div></sc-if>
+</section></sc-if>
+<sc-if value="{{ cd.t.invoices }}" hint-placeholder-val="{{ false }}"><section class="blueprint" style="padding:14px 18px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <sc-if value="{{ cd.noInvoices }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="margin:0; padding:20px 0; text-align:center">No invoices for this customer.</p></sc-if>
+  <sc-if value="{{ cd.hasInvoices }}" hint-placeholder-val="{{ true }}"><div style="overflow-x:auto"><table class="table" style="min-width:720px"><thead><tr><th>Invoice</th><th>Issued</th><th>Due</th><th>Cur.</th><th style="text-align:right">Total</th><th style="text-align:right">Outstanding</th><th>Status</th></tr></thead><tbody><sc-for list="{{ cd.invoices }}" as="r" hint-placeholder-count="3"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500">{{ r.id }}</td><td>{{ r.issue }}</td><td>{{ r.due }}</td><td>{{ r.cur }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.total }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.out }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td></tr></sc-for></tbody></table></div></sc-if>
+</section></sc-if>
+<sc-if value="{{ cd.t.payments }}" hint-placeholder-val="{{ false }}"><section class="blueprint" style="padding:14px 18px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <sc-if value="{{ cd.noPayments }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="margin:0; padding:20px 0; text-align:center">No payments recorded for this customer.</p></sc-if>
+  <sc-if value="{{ cd.hasPayments }}" hint-placeholder-val="{{ true }}"><div style="overflow-x:auto"><table class="table" style="min-width:640px"><thead><tr><th>Reference</th><th>Invoice</th><th>Date</th><th>Method</th><th style="text-align:right">Amount</th><th>Cur.</th></tr></thead><tbody><sc-for list="{{ cd.payments }}" as="r" hint-placeholder-count="2"><tr onClick="{{ r.onOpen }}" style="cursor:pointer"><td style="font-weight:500">{{ r.ref }}</td><td>{{ r.inv }}</td><td>{{ r.date }}</td><td>{{ r.method }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.amount }}</td><td>{{ r.cur }}</td></tr></sc-for></tbody></table></div></sc-if>
+</section></sc-if>
+</sc-if></sc-if>
+
+<sc-if value="{{ is.products }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap">
+  <div><h1 style="margin:0; font-size:32px">Products</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Default prices are net, in ALL, excluding VAT.</p></div>
+  <sc-if value="{{ prl.canEdit }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ prl.onNew }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}New product</button></sc-if>
+</div>
+<section class="blueprint" style="padding:14px 18px 10px; display:flex; flex-direction:column; gap:12px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
+    <input class="input" type="search" aria-label="Search products" placeholder="Name or SKU" value="{{ prl.f.q }}" onChange="{{ prl.set.q }}" style="width:240px; max-width:100%">
+    <select class="input" aria-label="Category" value="{{ prl.f.cat }}" onChange="{{ prl.set.cat }}" style="width:auto"><option value="all">All categories</option><sc-for list="{{ prl.cats }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select>
+    <select class="input" aria-label="Status" value="{{ prl.f.status }}" onChange="{{ prl.set.status }}" style="width:auto"><option value="all">Active and inactive</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+  </div>
+  <sc-if value="{{ prl.empty }}" hint-placeholder-val="{{ false }}"><div style="padding:36px 0; display:flex; flex-direction:column; align-items:center; gap:6px; text-align:center"><h4 style="margin:0">{{ prl.emptyTitle }}</h4><p class="text-muted" style="margin:0; font-size:13px">{{ prl.emptyBody }}</p><sc-if value="{{ prl.showClear }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-ghost" onClick="{{ prl.onClear }}">Clear filters</button></sc-if></div></sc-if>
+  <sc-if value="{{ prl.loading }}" hint-placeholder-val="{{ false }}"><div style="display:flex; flex-direction:column; gap:14px; padding:10px 0"><sc-for list="{{ skel }}" as="k" hint-placeholder-count="6"><div style="height:14px; width:{{ k.w }}; background:var(--color-neutral-200)"></div></sc-for></div></sc-if>
+  <sc-if value="{{ prl.error }}" hint-placeholder-val="{{ false }}"><div role="alert" style="padding:28px 0; display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><div>{{ prl.errBody }}</div><button type="button" class="btn btn-secondary" onClick="{{ prl.onRetry }}">Retry</button></div></sc-if>
+  <sc-if value="{{ prl.show }}" hint-placeholder-val="{{ true }}">
+    <div style="overflow-x:auto"><table class="table" style="min-width:820px"><thead><tr><th>Product</th><th>SKU</th><th>Category</th><th>Unit</th><th style="text-align:right">Net price (ALL)</th><th style="text-align:right">VAT</th><th>Status</th><th style="width:60px"></th></tr></thead><tbody>
+      <sc-for list="{{ prl.rows }}" as="r" hint-placeholder-count="8"><tr><td style="font-weight:500">{{ r.name }}</td><td style="font-variant-numeric:tabular-nums">{{ r.sku }}</td><td>{{ r.cat }}</td><td>{{ r.unit }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.price }}</td><td style="text-align:right">{{ r.vat }}</td><td><span class="tag" style="background:{{ r.badge.bg }}; color:{{ r.badge.fg }}">{{ r.badge.label }}</span></td><td style="text-align:right"><sc-if value="{{ prl.canEdit }}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-ghost" onClick="{{ r.onEdit }}" style="font-size:13px">Edit</button></sc-if></td></tr></sc-for>
+    </tbody></table></div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ is.categories }}" hint-placeholder-val="{{ false }}">
+<div><h1 style="margin:0; font-size:32px">Categories</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Product groupings used for catalog filters and reports.</p></div>
+<section class="blueprint" style="padding:14px 18px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="overflow-x:auto"><table class="table"><thead><tr><th>Category</th><th style="text-align:right">Products</th><th style="text-align:right">Active</th><th>Units used</th></tr></thead><tbody><sc-for list="{{ catRows }}" as="r" hint-placeholder-count="6"><tr><td style="font-weight:500">{{ r.name }}</td><td style="text-align:right">{{ r.n }}</td><td style="text-align:right">{{ r.active }}</td><td>{{ r.units }}</td></tr></sc-for></tbody></table></div></section>
+</sc-if>
+
+<sc-if value="{{ is.employees }}" hint-placeholder-val="{{ false }}">
+<div><h1 style="margin:0; font-size:32px">Employees</h1><p class="text-muted" style="margin:2px 0 0; font-size:13px">Sales representatives and their assigned territories. November figures are month to date.</p></div>
+<section class="blueprint" style="padding:14px 18px; min-width:0"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="overflow-x:auto"><table class="table" style="min-width:680px"><thead><tr><th>ID</th><th>Name</th><th>Territory</th><th style="text-align:right">Customers</th><th style="text-align:right">Orders (Nov)</th><th style="text-align:right">Net invoiced, ALL (Nov)</th></tr></thead><tbody><sc-for list="{{ empRows }}" as="r" hint-placeholder-count="4"><tr><td style="color:var(--color-neutral-700)">{{ r.id }}</td><td style="font-weight:500">{{ r.name }}</td><td>{{ r.region }}</td><td style="text-align:right">{{ r.customers }}</td><td style="text-align:right">{{ r.orders }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ r.net }}</td></tr></sc-for></tbody></table></div></section>
+</sc-if>
+
+<sc-if value="{{ is.placeholder }}" hint-placeholder-val="{{ false }}">
+<div class="blueprint" style="padding:40px 28px; display:flex; flex-direction:column; gap:10px; max-width:640px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <span class="tag tag-outline" style="align-self:flex-start">Not in this design pass</span>
+  <h2 style="margin:0">Administration screens</h2>
+  <p style="margin:0">User management and settings are scoped for Stage 5. They depend on the auth and role endpoints listed in IMPLEMENTATION.md (GET/POST /api/users, PATCH /api/users/:id/role, GET/PUT /api/settings).</p>
+</div>
+</sc-if>
+<sc-if value="{{ is.assistant }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex; gap:20px; min-height:calc(100vh - 120px); align-items:stretch">
+  <sc-if value="{{ aiv.showList }}" hint-placeholder-val="{{ true }}">
+  <aside class="blueprint" style="width:260px; flex:none; display:flex; flex-direction:column"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="padding:12px; border-bottom:1px solid var(--color-divider)"><button type="button" class="btn btn-secondary" onClick="{{ aiv.onNew }}" style="width:100%">{{ icons.plus }}New conversation</button></div>
+    <div style="font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--color-neutral-700); padding:12px 14px 4px">History</div>
+    <div style="display:flex; flex-direction:column; overflow-y:auto">
+      <sc-for list="{{ aiv.convs }}" as="c" hint-placeholder-count="3"><button type="button" onClick="{{ c.onClick }}" style="display:flex; flex-direction:column; gap:2px; text-align:left; border:0; border-left:2px solid {{ c.bar }}; background:{{ c.bg }}; padding:9px 12px; cursor:pointer" style-hover="background:color-mix(in srgb, var(--color-accent) 10%, transparent)"><span style="font-size:13.5px; font-weight:500; line-height:1.3">{{ c.title }}</span><span style="font-size:11.5px; color:var(--color-neutral-700)">{{ c.updated }}</span></button></sc-for>
+    </div>
+  </aside>
+  </sc-if>
+  <section class="blueprint" style="flex:1; min-width:0; display:flex; flex-direction:column"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div style="padding:12px 18px; border-bottom:1px solid var(--color-divider); display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap">
+      <div style="display:flex; flex-direction:column"><h3 style="margin:0; font-size:19px">{{ aiv.title }}</h3><span style="font-size:12px; color:var(--color-neutral-700)">{{ aiv.scope }}</span></div>
+      <sc-if value="{{ aiv.fixture }}" hint-placeholder-val="{{ false }}"><span class="tag" style="background:oklch(0.94 0.06 85); color:oklch(0.42 0.09 70)">Preview transcript · fixture data, not live results</span></sc-if>
+    </div>
+    <div style="flex:1; overflow-y:auto; padding:20px 18px; display:flex; flex-direction:column; gap:18px">
+      <sc-if value="{{ aiv.empty }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:auto; max-width:560px; display:flex; flex-direction:column; gap:14px; align-items:center; text-align:center">
+          <span style="color:var(--color-accent)">{{ icons.big.assistant }}</span>
+          <h2 style="margin:0; font-size:26px">Ask about customers, sales and receivables</h2>
+          <p class="text-muted" style="margin:0; font-size:13px">Answers come from the SalesFlow database through a server-side endpoint. Results show their period, currency and conversion basis.</p>
+        </div>
+      </sc-if>
+      <sc-for list="{{ aiv.msgs }}" as="m" hint-placeholder-count="0">
+        <sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}"><div style="align-self:flex-end; max-width:min(560px, 85%); background:var(--color-accent-100); color:var(--color-accent-900); padding:9px 14px; font-size:14px">{{ m.text }}</div></sc-if>
+        <sc-if value="{{ m.isAi }}" hint-placeholder-val="{{ false }}">
+          <div style="align-self:stretch; max-width:760px; display:flex; flex-direction:column; gap:10px">
+            <span style="font-size:11px; letter-spacing:0.08em; text-transform:uppercase; color:var(--color-accent-700)">SalesFlow Assistant</span>
+            <p style="margin:0; font-size:14px">{{ m.text }}</p>
+            <sc-if value="{{ m.hasTable }}" hint-placeholder-val="{{ false }}"><div style="border:1px solid var(--color-divider); padding:4px 12px; overflow-x:auto"><table class="table"><thead><tr><sc-for list="{{ m.cols }}" as="c" hint-placeholder-count="3"><th>{{ c }}</th></sc-for></tr></thead><tbody><sc-for list="{{ m.rows }}" as="r" hint-placeholder-count="3"><tr><td style="font-weight:500">{{ r.a }}</td><td>{{ r.b }}</td><td style="font-variant-numeric:tabular-nums">{{ r.c }}</td></tr></sc-for></tbody></table></div></sc-if>
+            <sc-if value="{{ m.hasKpis }}" hint-placeholder-val="{{ false }}"><div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:14px"><sc-for list="{{ m.kp }}" as="k" hint-placeholder-count="4"><div class="blueprint" style="padding:10px 12px; display:flex; flex-direction:column; gap:2px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><span style="font-size:11px; color:var(--color-neutral-700)">{{ k.label }}</span><span style="font-family:var(--font-heading); font-weight:600; font-size:19px; font-variant-numeric:tabular-nums">{{ k.value }}</span></div></sc-for></div></sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{ m.isErr }}" hint-placeholder-val="{{ false }}"><div role="status" style="max-width:760px; display:flex; gap:10px; padding:10px 14px; border:1px solid var(--color-divider); font-size:13px; color:var(--color-neutral-800)"><span style="color:oklch(0.48 0.14 25)">{{ icons.alert }}</span><span>{{ m.text }}</span></div></sc-if>
+      </sc-for>
+      <sc-if value="{{ aiv.pending }}" hint-placeholder-val="{{ false }}"><div style="font-size:13px; color:var(--color-neutral-700)">Querying authorized data…</div></sc-if>
+    </div>
+    <div style="border-top:1px solid var(--color-divider); padding:12px 18px; display:flex; flex-direction:column; gap:10px">
+      <div style="display:flex; gap:6px; flex-wrap:wrap"><sc-for list="{{ aiv.suggestions }}" as="q" hint-placeholder-count="5"><button type="button" class="tag tag-outline" onClick="{{ q.onClick }}" style="cursor:pointer; background:transparent; font-size:12px; padding:4px 10px" style-hover="background:var(--color-accent-100)">{{ q.t }}</button></sc-for></div>
+      <div style="display:flex; gap:8px; align-items:flex-end">
+        <textarea class="input" aria-label="Message" rows="2" placeholder="Ask a question about your sales data" value="{{ aiv.input }}" onChange="{{ aiv.onInput }}" onKeyDown="{{ aiv.onKey }}" style="min-height:44px; resize:none"></textarea>
+        <button type="button" class="btn btn-primary blueprint" aria-label="Send" onClick="{{ aiv.onSend }}" disabled="{{ aiv.sendDis }}" style="height:44px; width:48px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.send }}</button>
+      </div>
+    </div>
+  </section>
+</div>
+</sc-if>
+    </main>
+  </div>
+</div>
+<sc-if value="{{ hasOd }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ od.onClose }}" style="position:fixed; inset:0; background:color-mix(in srgb, var(--color-neutral-900) 30%, transparent); z-index:70"></div>
+<aside role="dialog" aria-label="Order details" style="position:fixed; top:0; right:0; bottom:0; width:min(560px, 100vw); background:var(--color-bg); border-left:1px solid var(--color-divider); box-shadow:var(--shadow-lg); z-index:71; overflow-y:auto; display:flex; flex-direction:column">
+  <div style="padding:16px 20px; border-bottom:1px solid var(--color-divider); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; position:sticky; top:0; background:var(--color-bg)">
+    <div style="display:flex; flex-direction:column; gap:4px"><div style="display:flex; align-items:center; gap:10px"><h2 style="margin:0; font-size:26px">{{ od.id }}</h2><span class="tag" style="background:{{ od.badge.bg }}; color:{{ od.badge.fg }}; border:1px solid {{ od.badge.bd }}">{{ od.badge.label }}</span></div><span style="font-size:13px; color:var(--color-neutral-700)">{{ od.cust }} · {{ od.date }}</span></div>
+    <button type="button" class="btn btn-icon btn-ghost" aria-label="Close" onClick="{{ od.onClose }}" style="color:var(--color-text)">{{ icons.x }}</button>
+  </div>
+  <div style="padding:18px 20px; display:flex; flex-direction:column; gap:20px">
+    <sc-if value="{{ od.hasActions }}" hint-placeholder-val="{{ false }}"><div style="display:flex; gap:8px; flex-wrap:wrap">
+      <sc-if value="{{ od.canConfirm }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ od.onConfirm }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.check }}Confirm order</button></sc-if>
+      <sc-if value="{{ od.canInvoice }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ od.onInvoice }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.invoices }}Issue invoice</button></sc-if>
+      <sc-if value="{{ od.canCancel }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-secondary" onClick="{{ od.onCancel }}">Cancel order</button></sc-if>
+    </div></sc-if>
+    <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px"><dt class="text-muted">Customer</dt><dd style="margin:0">{{ od.cust }} · {{ od.nipt }}</dd><dt class="text-muted">Representative</dt><dd style="margin:0">{{ od.rep }}</dd><dt class="text-muted">Delivery</dt><dd style="margin:0">{{ od.address }}</dd><dt class="text-muted">Currency</dt><dd style="margin:0">{{ od.cur }}</dd><dt class="text-muted">Exchange rate</dt><dd style="margin:0; font-variant-numeric:tabular-nums">{{ od.rate }}</dd><dt class="text-muted">Invoice</dt><dd style="margin:0"><sc-if value="{{ od.hasInv }}" hint-placeholder-val="{{ false }}"><a href="#" onClick="{{ od.onInv }}">{{ od.invId }}</a></sc-if><sc-if value="{{ od.cancelled }}" hint-placeholder-val="{{ false }}"><span class="text-muted">Not applicable</span></sc-if></dd></dl>
+    <div style="display:flex; flex-direction:column; gap:6px"><h4 style="margin:0; font-size:16px">Items</h4><div style="overflow-x:auto"><table class="table" style="font-size:13px"><thead><tr><th>Product</th><th style="text-align:right">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Disc.</th><th style="text-align:right">VAT</th><th style="text-align:right">Total</th></tr></thead><tbody><sc-for list="{{ od.items }}" as="i" hint-placeholder-count="2"><tr><td>{{ i.name }}<div style="font-size:11.5px; color:var(--color-neutral-700)">{{ i.sku }}</div></td><td style="text-align:right; white-space:nowrap">{{ i.qty }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ i.price }}</td><td style="text-align:right">{{ i.disc }}</td><td style="text-align:right">{{ i.vat }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ i.total }}</td></tr></sc-for></tbody></table></div></div>
+    <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; margin-left:auto; width:min(300px, 100%)"><sc-for list="{{ od.fin.rows }}" as="x" hint-placeholder-count="4"><div style="display:flex; justify-content:space-between"><span class="text-muted">{{ x.k }}</span><span style="font-variant-numeric:tabular-nums">{{ x.v }}</span></div></sc-for><div style="display:flex; justify-content:space-between; padding-top:8px; border-top:1px solid var(--color-divider); font-family:var(--font-heading); font-weight:600; font-size:19px"><span>Total</span><span style="font-variant-numeric:tabular-nums">{{ od.fin.total }}</span></div><sc-if value="{{ od.fin.hasEq }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:var(--color-neutral-700); text-align:right">{{ od.fin.eq }}</div></sc-if></div>
+    <div style="display:flex; flex-direction:column; gap:8px"><h4 style="margin:0; font-size:16px">Timeline</h4><sc-for list="{{ od.timeline }}" as="t" hint-placeholder-count="3"><div style="display:flex; align-items:center; gap:10px; font-size:13px"><span style="width:10px; height:10px; border:1px solid var(--color-accent); background:{{ t.dot }}; flex:none"></span><span style="width:90px">{{ t.t }}</span><span class="text-muted">{{ t.d }}</span></div></sc-for><span style="font-size:11.5px; color:var(--color-neutral-700)">Status events from the order audit log, where the backend records them.</span></div>
+  </div>
+</aside>
+</sc-if>
+
+<sc-if value="{{ hasIdr }}" hint-placeholder-val="{{ false }}">
+<div onClick="{{ idr.onClose }}" style="position:fixed; inset:0; background:color-mix(in srgb, var(--color-neutral-900) 30%, transparent); z-index:70"></div>
+<aside role="dialog" aria-label="Invoice details" style="position:fixed; top:0; right:0; bottom:0; width:min(580px, 100vw); background:var(--color-bg); border-left:1px solid var(--color-divider); box-shadow:var(--shadow-lg); z-index:71; overflow-y:auto">
+  <div style="padding:16px 20px; border-bottom:1px solid var(--color-divider); display:flex; justify-content:space-between; align-items:flex-start; gap:12px; position:sticky; top:0; background:var(--color-bg)">
+    <div style="display:flex; flex-direction:column; gap:4px"><div style="display:flex; align-items:center; gap:10px"><h2 style="margin:0; font-size:26px">{{ idr.id }}</h2><span class="tag" style="background:{{ idr.badge.bg }}; color:{{ idr.badge.fg }}">{{ idr.badge.label }}</span></div><span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--color-neutral-700)">{{ icons.big.lock }}Issued values are locked. Corrections require a credit note.</span></div>
+    <button type="button" class="btn btn-icon btn-ghost" aria-label="Close" onClick="{{ idr.onClose }}" style="color:var(--color-text)">{{ icons.x }}</button>
+  </div>
+  <div style="padding:18px 20px; display:flex; flex-direction:column; gap:20px">
+    <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:14px">
+      <div class="blueprint" style="padding:10px 12px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="font-size:11px; color:var(--color-neutral-700)">Total ({{ idr.cur }})</div><div style="font-family:var(--font-heading); font-weight:600; font-size:19px; font-variant-numeric:tabular-nums">{{ idr.fin.total }}</div></div>
+      <div class="blueprint" style="padding:10px 12px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="font-size:11px; color:var(--color-neutral-700)">Paid</div><div style="font-family:var(--font-heading); font-weight:600; font-size:19px; font-variant-numeric:tabular-nums">{{ idr.paid }}</div></div>
+      <div class="blueprint" style="padding:10px 12px; border-color:var(--color-accent)"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div style="font-size:11px; color:var(--color-neutral-700)">Outstanding</div><div style="font-family:var(--font-heading); font-weight:600; font-size:19px; font-variant-numeric:tabular-nums">{{ idr.out }}</div></div>
+    </div>
+    <sc-if value="{{ idr.canPay }}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-primary blueprint" onClick="{{ idr.onPay }}" style="align-self:flex-start"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ icons.plus }}Register payment</button></sc-if>
+    <dl style="margin:0; display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px"><dt class="text-muted">Customer</dt><dd style="margin:0">{{ idr.cust }} · {{ idr.nipt }}</dd><dt class="text-muted">Billing address</dt><dd style="margin:0">{{ idr.addr }}</dd><dt class="text-muted">Issued</dt><dd style="margin:0">{{ idr.issue }}</dd><dt class="text-muted">Due</dt><dd style="margin:0">{{ idr.due }}</dd><dt class="text-muted">Exchange rate</dt><dd style="margin:0; font-variant-numeric:tabular-nums">{{ idr.rate }}</dd><dt class="text-muted">Order</dt><dd style="margin:0"><a href="#" onClick="{{ idr.onOrder }}">{{ idr.orderId }}</a></dd></dl>
+    <div style="display:flex; flex-direction:column; gap:6px"><h4 style="margin:0; font-size:16px">Items</h4><div style="overflow-x:auto"><table class="table" style="font-size:13px"><thead><tr><th>Product</th><th style="text-align:right">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Disc.</th><th style="text-align:right">VAT</th><th style="text-align:right">Total</th></tr></thead><tbody><sc-for list="{{ idr.items }}" as="i" hint-placeholder-count="2"><tr><td>{{ i.name }}<div style="font-size:11.5px; color:var(--color-neutral-700)">{{ i.sku }}</div></td><td style="text-align:right; white-space:nowrap">{{ i.qty }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ i.price }}</td><td style="text-align:right">{{ i.disc }}</td><td style="text-align:right">{{ i.vat }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ i.total }}</td></tr></sc-for></tbody></table></div></div>
+    <div style="display:flex; flex-direction:column; gap:6px; font-size:14px; margin-left:auto; width:min(300px, 100%)"><sc-for list="{{ idr.fin.rows }}" as="x" hint-placeholder-count="4"><div style="display:flex; justify-content:space-between"><span class="text-muted">{{ x.k }}</span><span style="font-variant-numeric:tabular-nums">{{ x.v }}</span></div></sc-for><div style="display:flex; justify-content:space-between; padding-top:8px; border-top:1px solid var(--color-divider); font-family:var(--font-heading); font-weight:600; font-size:19px"><span>Total</span><span style="font-variant-numeric:tabular-nums">{{ idr.fin.total }}</span></div><sc-if value="{{ idr.fin.hasEq }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:var(--color-neutral-700); text-align:right">{{ idr.fin.eq }}</div></sc-if></div>
+    <div style="display:flex; flex-direction:column; gap:6px"><h4 style="margin:0; font-size:16px">Payment history</h4>
+      <sc-if value="{{ idr.noPays }}" hint-placeholder-val="{{ false }}"><p class="text-muted" style="margin:0; font-size:13px">No payments recorded.</p></sc-if>
+      <sc-if value="{{ idr.hasPays }}" hint-placeholder-val="{{ true }}"><table class="table" style="font-size:13px"><thead><tr><th>Date</th><th>Method</th><th>Reference</th><th style="text-align:right">Amount</th></tr></thead><tbody><sc-for list="{{ idr.pays }}" as="p" hint-placeholder-count="1"><tr><td>{{ p.date }}</td><td>{{ p.method }}</td><td>{{ p.ref }}</td><td style="text-align:right; font-variant-numeric:tabular-nums">{{ p.amount }}</td></tr></sc-for></tbody></table></sc-if>
+    </div>
+  </div>
+</aside>
+</sc-if>
+
+<sc-if value="{{ hasPd }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop" style="z-index:80" onClick="{{ pd.onClose }}"></div>
+<div style="position:fixed; inset:0; display:grid; place-items:center; padding:16px; z-index:81; pointer-events:none">
+<div class="dialog blueprint" role="dialog" aria-modal="true" aria-labelledby="pd-t" style="width:min(560px, 100%); background:var(--color-bg); pointer-events:auto; max-height:calc(100vh - 32px); overflow-y:auto"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div id="pd-t" class="dialog-title">Register payment</div>
+  <div class="field"><label for="pd-inv">Invoice</label><select id="pd-inv" class="input" value="{{ pd.invId }}" onChange="{{ pd.set.invId }}"><option value="">Select an invoice with an open balance…</option><sc-for list="{{ pd.opts }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select></div>
+  <sc-if value="{{ pd.has }}" hint-placeholder-val="{{ false }}"><div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:10px; font-size:13px; padding:10px 12px; border:1px solid var(--color-divider)"><div><div class="text-muted" style="font-size:11px">Invoice total</div><div style="font-variant-numeric:tabular-nums">{{ pd.total }}</div></div><div><div class="text-muted" style="font-size:11px">Previously paid</div><div style="font-variant-numeric:tabular-nums">{{ pd.paid }}</div></div><div><div class="text-muted" style="font-size:11px">Outstanding</div><div style="font-variant-numeric:tabular-nums; font-weight:600">{{ pd.out }}</div></div></div></sc-if>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px">
+    <div class="field"><label for="pd-amt">Amount ({{ pd.cur }})</label><div style="display:flex; gap:6px"><input id="pd-amt" class="input" inputmode="decimal" value="{{ pd.amount }}" onChange="{{ pd.set.amount }}" style="text-align:right; font-variant-numeric:tabular-nums; border-color:{{ pd.amtB }}"><button type="button" class="btn btn-secondary" onClick="{{ pd.onFull }}" disabled="{{ pd.noInv }}" style="white-space:nowrap">Full</button></div><sc-if value="{{ pd.hasAmtErr }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pd.amtErr }}</div></sc-if></div>
+    <div class="field"><label for="pd-date">Payment date</label><input id="pd-date" class="input" type="date" value="{{ pd.date }}" onChange="{{ pd.set.date }}"></div>
+  </div>
+  <div class="field"><label>Payment method</label><div class="seg" role="radiogroup" aria-label="Payment method"><sc-for list="{{ pd.methods }}" as="o" hint-placeholder-count="3"><label class="seg-opt"><input type="radio" name="pd-m" checked="{{ o.checked }}" onChange="{{ o.onChange }}">{{ o.label }}</label></sc-for></div></div>
+  <div class="field"><label for="pd-ref">Reference number</label><input id="pd-ref" class="input" placeholder="Bank or POS reference; optional for cash" value="{{ pd.ref }}" onChange="{{ pd.set.ref }}"></div>
+  <p style="margin:0; font-size:12px; color:var(--color-neutral-700)">Payments are recorded in the invoice currency. The server rejects amounts above the outstanding balance.</p>
+  <sc-if value="{{ pd.hasErr }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:13px; color:oklch(0.45 0.14 25)">{{ pd.err }}</div></sc-if>
+  <div class="dialog-actions"><button type="button" class="btn btn-ghost" onClick="{{ pd.onClose }}">Cancel</button><button type="button" class="btn btn-primary blueprint" onClick="{{ pd.onSave }}" disabled="{{ pd.saveDis }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Record payment</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasPdl }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop" style="z-index:80" onClick="{{ pdl.onClose }}"></div>
+<div style="position:fixed; inset:0; display:grid; place-items:center; padding:16px; z-index:81; pointer-events:none">
+<div class="dialog blueprint" role="dialog" aria-modal="true" style="width:min(560px, 100%); background:var(--color-bg); pointer-events:auto; max-height:calc(100vh - 32px); overflow-y:auto"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="dialog-title">{{ pdl.title }}</div>
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px">
+    <div class="field" style="grid-column:1 / -1"><label for="pf-name">Product name</label><input id="pf-name" class="input" value="{{ pdl.f.name }}" onChange="{{ pdl.set.name }}" style="border-color:{{ pdl.e.name.bd }}"><sc-if value="{{ pdl.e.name.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pdl.e.name.msg }}</div></sc-if></div>
+    <div class="field"><label for="pf-sku">SKU</label><input id="pf-sku" class="input" value="{{ pdl.f.sku }}" onChange="{{ pdl.set.sku }}" style="border-color:{{ pdl.e.sku.bd }}; text-transform:uppercase"><sc-if value="{{ pdl.e.sku.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pdl.e.sku.msg }}</div></sc-if></div>
+    <div class="field"><label for="pf-cat">Category</label><select id="pf-cat" class="input" value="{{ pdl.f.cat }}" onChange="{{ pdl.set.cat }}" style="border-color:{{ pdl.e.cat.bd }}"><option value="">Select…</option><sc-for list="{{ pdl.cats }}" as="o" hint-placeholder-count="0"><option value="{{ o.v }}">{{ o.l }}</option></sc-for></select><sc-if value="{{ pdl.e.cat.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pdl.e.cat.msg }}</div></sc-if></div>
+    <div class="field"><label for="pf-unit">Unit</label><input id="pf-unit" class="input" placeholder="kg, pack, bottle" value="{{ pdl.f.unit }}" onChange="{{ pdl.set.unit }}" style="border-color:{{ pdl.e.unit.bd }}"><sc-if value="{{ pdl.e.unit.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pdl.e.unit.msg }}</div></sc-if></div>
+    <div class="field"><label for="pf-vat">VAT rate</label><select id="pf-vat" class="input" value="{{ pdl.f.vat }}" onChange="{{ pdl.set.vat }}"><option value="20">20%</option><option value="10">10%</option><option value="6">6%</option><option value="0">0%</option></select></div>
+    <div class="field"><label for="pf-price">Default net price (ALL, excl. VAT)</label><input id="pf-price" class="input" inputmode="decimal" value="{{ pdl.f.price }}" onChange="{{ pdl.set.price }}" style="text-align:right; font-variant-numeric:tabular-nums; border-color:{{ pdl.e.price.bd }}"><div style="font-size:12px; color:var(--color-neutral-700); margin-top:4px">{{ pdl.gross }}</div><sc-if value="{{ pdl.e.price.has }}" hint-placeholder-val="{{ false }}"><div style="font-size:12px; color:oklch(0.48 0.15 25); margin-top:4px">{{ pdl.e.price.msg }}</div></sc-if></div>
+    <div class="field"><label for="pf-st">Status</label><select id="pf-st" class="input" value="{{ pdl.f.active }}" onChange="{{ pdl.set.active }}"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+  </div>
+  <div class="dialog-actions"><button type="button" class="btn btn-ghost" onClick="{{ pdl.onClose }}">Cancel</button><button type="button" class="btn btn-primary blueprint" onClick="{{ pdl.onSave }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>Save product</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasCdlg }}" hint-placeholder-val="{{ false }}">
+<div class="dialog-backdrop" style="z-index:90" onClick="{{ cdlg.onClose }}"></div>
+<div style="position:fixed; inset:0; display:grid; place-items:center; padding:16px; z-index:91; pointer-events:none">
+<div class="dialog blueprint" role="alertdialog" aria-modal="true" style="background:var(--color-bg); pointer-events:auto"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="dialog-title">{{ cdlg.title }}</div><div class="dialog-body">{{ cdlg.body }}</div>
+  <div class="dialog-actions"><button type="button" class="btn btn-ghost" onClick="{{ cdlg.onClose }}">Go back</button><button type="button" class="btn btn-primary blueprint" onClick="{{ cdlg.onRun }}"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>{{ cdlg.action }}</button></div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}"><div role="status" style="position:fixed; bottom:20px; right:20px; max-width:min(440px, calc(100vw - 40px)); background:var(--color-accent-900); color:var(--color-bg); padding:12px 16px; font-size:13.5px; box-shadow:var(--shadow-lg); z-index:100; display:flex; gap:10px; align-items:flex-start">{{ icons.check }}<span>{{ toast }}</span></div></sc-if>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;role&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;rep&quot;,&quot;manager&quot;,&quot;accountant&quot;,&quot;admin&quot;],&quot;default&quot;:&quot;manager&quot;,&quot;tsType&quot;:&quot;'rep'|'manager'|'accountant'|'admin'&quot;,&quot;section&quot;:&quot;Access&quot;},&quot;dataState&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ready&quot;,&quot;loading&quot;,&quot;empty&quot;,&quot;error&quot;],&quot;default&quot;:&quot;ready&quot;,&quot;tsType&quot;:&quot;'ready'|'loading'|'empty'|'error'&quot;,&quot;section&quot;:&quot;Preview&quot;},&quot;startPage&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dashboard&quot;,&quot;orders&quot;,&quot;newOrder&quot;,&quot;invoices&quot;,&quot;payments&quot;,&quot;customers&quot;,&quot;products&quot;,&quot;reports&quot;,&quot;assistant&quot;],&quot;default&quot;:&quot;dashboard&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+class Component extends DCLogic {
+  T = '2026-11-16';
+  state = this.init();
+  componentDidMount() {
+    this.onR = () => this.setState({ vw: window.innerWidth });
+    this.onK = e => { if (e.key === 'Escape') this.setState({ searchOpen: false, notifOpen: false, userOpen: false, orderSel: null, invSel: null, pay: null, prodDlg: null, mobileNav: false, confirmDlg: null }); };
+    window.addEventListener('resize', this.onR); window.addEventListener('keydown', this.onK); this.onR();
+  }
+  componentWillUnmount() { window.removeEventListener('resize', this.onR); window.removeEventListener('keydown', this.onK); clearTimeout(this.tt); clearTimeout(this.at); }
+  componentDidUpdate(pp) { if (pp.startPage !== this.props.startPage && this.props.startPage) this.go(this.props.startPage); }
+
+  ad(s, n) { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+  fd(s) { if (!s) return '—'; const [y, m, d] = s.split('-'); return +d + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1] + ' ' + y; }
+  mn(c, cur) { return (c < 0 ? '−' : '') + (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + (cur ? ' ' + cur : ''); }
+  m0(c) { return Math.round(c / 100).toLocaleString('en-US'); }
+  line(it, p) { const q = Math.round((+it.qty || 0) * 1000), net = Math.round(q * (it.price || 0) / 1000), disc = Math.round(net * Math.round((+it.disc || 0) * 100) / 10000), tx = net - disc, vat = Math.round(tx * (p ? p.vat : 0) / 100); return { net, disc, tx, vat, total: tx + vat }; }
+  tot(items, P) { const t = { net: 0, disc: 0, tx: 0, vat: 0, total: 0 }; items.forEach(it => { const l = this.line(it, P.find(p => p.id === it.pid)); for (const k in t) t[k] += l[k]; }); return t; }
+  eq(c, x) { return x.currency === 'ALL' ? c : Math.round(c * x.rate); }
+  payStatus(i) { const out = i.total - i.paid; if (out <= 0) return 'Paid'; if (i.due < this.T) return 'Overdue'; if (i.paid > 0) return 'Partial'; return 'Unpaid'; }
+  badge(label) {
+    const B = { Draft: ['var(--color-neutral-200)', 'var(--color-neutral-800)'], Confirmed: ['var(--color-accent-100)', 'var(--color-accent-800)'], Invoiced: ['var(--color-accent-200)', 'var(--color-accent-900)'], Cancelled: ['transparent', 'var(--color-neutral-700)'], Paid: ['oklch(0.94 0.045 155)', 'oklch(0.38 0.08 155)'], Partial: ['oklch(0.94 0.06 85)', 'oklch(0.42 0.09 70)'], Unpaid: ['var(--color-neutral-200)', 'var(--color-neutral-800)'], Overdue: ['oklch(0.93 0.045 25)', 'oklch(0.45 0.14 25)'], Active: ['oklch(0.94 0.045 155)', 'oklch(0.38 0.08 155)'], Inactive: ['var(--color-neutral-200)', 'var(--color-neutral-700)'] };
+    const b = B[label] || B.Draft; return { label, bg: b[0], fg: b[1], bd: label === 'Cancelled' ? 'var(--color-divider)' : 'transparent' };
+  }
+  icons() {
+    return {
+      dashboard: '<rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/>',
+      orders: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>',
+      invoices: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+      payments: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+      customers: '<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/>',
+      products: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12M3.3 7 12 12l8.7-5"/>',
+      categories: '<path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+      employees: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+      reports: '<path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/>',
+      assistant: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7M17 12H7"/>',
+      users: '<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+      settings: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/>',
+      search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+      bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+      plus: '<path d="M5 12h14M12 5v14"/>',
+      x: '<path d="M18 6 6 18M6 6l12 12"/>',
+      chevL: '<path d="m15 18-6-6 6-6"/>', chevR: '<path d="m9 18 6-6-6-6"/>', chevD: '<path d="m6 9 6 6 6-6"/>',
+      trash: '<path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
+      menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+      up: '<path d="m22 7-8.5 8.5-5-5L2 17"/><path d="M16 7h6v6"/>', down: '<path d="m22 17-8.5-8.5-5 5L2 7"/><path d="M16 17h6v-6"/>',
+      send: '<path d="M22 2 11 13"/><path d="m22 2-7 20-4-9-9-4z"/>',
+      alert: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+      panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>',
+      logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/>',
+      lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+      check: '<path d="M20 6 9 17l-5-5"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
+    };
+  }
+  init() {
+    const T = this.T;
+    const reps = [['E01', 'Arben Hoxha', 'Tiranë · Fier'], ['E02', 'Elira Kola', 'Durrës · Shkodër · Korçë'], ['E03', 'Dritan Shehu', 'Vlorë · Sarandë · Elbasan'], ['E04', 'Mirela Basha', 'Tiranë · Berat · Pogradec']].map(([id, name, region]) => ({ id, name, region }));
+    const products = [
+      ['P-001', 'Ujë Natyral 1.5L ×6', 'WTR-150-6', 'Beverages', 'pack', 36000, 20, 1], ['P-002', 'Kafe Ekspres 1kg', 'COF-1000', 'Coffee', 'kg', 185000, 20, 1],
+      ['P-003', 'Vaj Ulliri Ekstra 1L', 'OIL-EV-1', 'Oils', 'bottle', 110000, 20, 1], ['P-004', 'Makarona Spageti 500g', 'PAS-500', 'Pasta', 'pack', 14000, 20, 1],
+      ['P-005', 'Djathë i Bardhë', 'CHE-WHT', 'Dairy', 'kg', 78000, 20, 1], ['P-006', 'Sheqer 1kg', 'SUG-1000', 'Dry goods', 'kg', 12500, 20, 1],
+      ['P-007', 'Miell Tip 00 25kg', 'FLR-25', 'Dry goods', 'sack', 245000, 20, 1], ['P-008', 'Lëng Portokalli 1L', 'JUI-ORG-1', 'Beverages', 'bottle', 21000, 20, 1],
+      ['P-009', 'Qumësht UHT 1L', 'MLK-UHT-1', 'Dairy', 'carton', 13500, 20, 1], ['P-010', 'Oriz Basmati 5kg', 'RIC-BAS-5', 'Dry goods', 'sack', 139000, 20, 0]
+    ].map(([id, name, sku, cat, unit, price, vat, a]) => ({ id, name, sku, cat, unit, price, vat, active: !!a }));
+    const customers = [
+      ['Market Alba', 'L61318021A', 'Tiranë', 'Supermarket', 'Large', 'E01', 1, 'Gentian Leka', 'Purchasing manager', '+355 69 204 1180', 'Rr. Myslym Shyri 42', '1001', 'Tiranë'],
+      ['Supermarket Teuta', 'K81726403B', 'Durrës', 'Supermarket', 'Medium', 'E02', 1, 'Anila Dervishi', 'Owner', '+355 68 311 4502', 'Rr. Taulantia, Lagjja 13', '2001', 'Durrës'],
+      ['Hotel Butrinti Bay', 'L72109955C', 'Sarandë', 'Hotel', 'Large', 'E03', 1, 'Klodian Rama', 'F&B director', '+355 69 880 2231', 'Rr. Butrinti 1', '9701', 'Sarandë'],
+      ['Restorant Kalaja', 'J96402117D', 'Berat', 'Restaurant', 'Small', 'E04', 1, 'Fatos Meta', 'Owner', '+355 67 455 9012', 'Lagjja Kala', '5001', 'Berat'],
+      ['Dyqani Ylli', 'L51904388E', 'Tiranë', 'Grocery', 'Small', 'E01', 1, 'Majlinda Hysa', 'Owner', '+355 69 712 3348', 'Rr. e Kavajës 118', '1004', 'Tiranë'],
+      ['Bar Kafe Vlora', 'M02214560F', 'Vlorë', 'Café', 'Small', 'E03', 1, 'Erion Dauti', 'Manager', '+355 68 902 6671', 'Rr. Ismail Qemali 20', '9401', 'Vlorë'],
+      ['Market Shkodra Center', 'K42019876G', 'Shkodër', 'Supermarket', 'Medium', 'E02', 1, 'Blerina Gjoni', 'Store manager', '+355 69 330 7714', 'Rr. Kolë Idromeno 9', '4001', 'Shkodër'],
+      ['Hotel Arbëria', 'L83300142H', 'Tiranë', 'Hotel', 'Medium', 'E04', 1, 'Sokol Bregu', 'Procurement', '+355 68 221 0945', 'Rr. e Dibrës 77', '1001', 'Tiranë'],
+      ['Ushqimore Korça', 'J71188203I', 'Korçë', 'Grocery', 'Small', 'E02', 1, 'Olta Nikolla', 'Owner', '+355 69 618 2290', 'Bulevardi Republika 31', '7001', 'Korçë'],
+      ['Restorant Liqeni', 'L90227316J', 'Pogradec', 'Restaurant', 'Medium', 'E04', 1, 'Ardit Sula', 'Owner', '+355 67 330 1856', 'Rr. Reshit Collaku 4', '7301', 'Pogradec'],
+      ['Euromarket Elbasani', 'K63390451K', 'Elbasan', 'Supermarket', 'Large', 'E03', 1, 'Valmira Toska', 'Category buyer', '+355 69 455 6003', 'Rr. Qemal Stafa 210', '3001', 'Elbasan'],
+      ['Dyqani Fresk', 'M11872034L', 'Fier', 'Grocery', 'Small', 'E01', 0, 'Besnik Cela', 'Owner', '+355 68 120 4477', 'Rr. Jakov Xoxa 15', '9301', 'Fier'],
+      ['Hotel Riviera Dhërmi', 'L94410287M', 'Vlorë', 'Hotel', 'Medium', 'E03', 1, 'Alketa Zaimi', 'General manager', '+355 69 774 5120', 'Plazhi i Dhërmiut', '9408', 'Himarë'],
+      ['Mini Market Lana', 'L58821430N', 'Tiranë', 'Grocery', 'Small', 'E01', 1, 'Redon Kapllani', 'Owner', '+355 69 503 8821', 'Rr. Ali Demi 63', '1019', 'Tiranë']
+    ].map((r, i) => ({ id: 'C-' + (1001 + i), name: r[0], nipt: r[1], city: r[2], type: r[3], size: r[4], rep: r[5], active: !!r[6], contact: r[7], position: r[8], phone: r[9], street: r[10], postal: r[11], muni: r[12], addrType: 'Delivery', notes: '', email: 'orders@' + r[0].toLowerCase().normalize('NFD').replace(/[^a-z]/g, '') + '.al' }));
+    const O = [
+      ['0403', 13, '2026-10-08', 'ALL', 1, 'Invoiced', [[0, 30, 0], [8, 60, 0], [5, 50, 0]]],
+      ['0404', 10, '2026-10-11', 'ALL', 1, 'Invoiced', [[6, 30, 5], [3, 500, 5]]],
+      ['0405', 2, '2026-10-15', 'EUR', 98.10, 'Invoiced', [[1, 10, 0], [4, 25, 0]]],
+      ['0406', 8, '2026-10-20', 'ALL', 1, 'Invoiced', [[5, 80, 0], [3, 120, 0]]],
+      ['0407', 9, '2026-10-24', 'ALL', 1, 'Invoiced', [[2, 12, 0], [6, 4, 0]]],
+      ['0408', 0, '2026-10-29', 'ALL', 1, 'Invoiced', [[0, 150, 5], [5, 200, 5], [3, 300, 5], [2, 40, 5]]],
+      ['0409', 5, '2026-11-02', 'ALL', 1, 'Invoiced', [[1, 10, 0], [8, 40, 0]]],
+      ['0410', 7, '2026-11-04', 'ALL', 1, 'Invoiced', [[1, 6, 0], [4, 20, 0]]],
+      ['0411', 6, '2026-11-06', 'ALL', 1, 'Invoiced', [[0, 80, 3], [8, 150, 3], [5, 120, 3]]],
+      ['0412', 4, '2026-11-08', 'ALL', 1, 'Cancelled', [[0, 10, 0]]],
+      ['0413', 12, '2026-11-10', 'EUR', 97.80, 'Invoiced', [[1, 8, 0], [7, 48, 0], [8, 96, 0]]],
+      ['0414', 3, '2026-11-12', 'ALL', 1, 'Invoiced', [[2, 10, 0], [3, 60, 0], [4, 15, 0]]],
+      ['0415', 10, '2026-11-13', 'ALL', 1, 'Invoiced', [[6, 20, 5], [5, 300, 5], [3, 400, 5]]],
+      ['0416', 1, '2026-11-14', 'ALL', 1, 'Invoiced', [[0, 120, 4], [7, 60, 0], [8, 200, 2]]],
+      ['0417', 2, '2026-11-15', 'EUR', 97.80, 'Confirmed', [[1, 12, 5], [2, 24, 5], [4, 30, 0]]],
+      ['0418', 0, '2026-11-16', 'ALL', 1, 'Draft', [[0, 40, 0], [5, 100, 3]]]
+    ];
+    const orders = O.map(([no, ci, date, cur, rate, status, items]) => { const c = customers[ci]; const o = { id: 'SO-2026-' + no, custId: c.id, repId: c.rep, date, currency: cur, rate, status, address: c.street + ', ' + c.city, invoiceId: null, items: items.map(([pi, qty, disc]) => ({ pid: products[pi].id, qty, disc, price: cur === 'ALL' ? products[pi].price : Math.round(products[pi].price / rate) })) }; return Object.assign(o, this.tot(o.items, products)); });
+    const frac = { '0403': 1, '0404': 1, '0405': 0.3, '0406': 0, '0407': 0, '0408': 1, '0409': 1, '0410': 0.4, '0411': 1, '0413': 0, '0414': 1, '0415': 0.5, '0416': 0 };
+    const invoices = [], payments = [], methods = ['Bank transfer', 'Cash', 'Bank transfer', 'Card'];
+    orders.filter(o => o.status === 'Invoiced').forEach((o, i) => {
+      const c = customers.find(x => x.id === o.custId), issue = this.ad(o.date, 1), f = frac[o.id.slice(-4)] || 0;
+      const inv = { id: 'INV-2026-0' + (301 + i), orderId: o.id, custId: o.custId, repId: o.repId, issue, due: this.ad(issue, c.size === 'Small' ? 15 : 30), currency: o.currency, rate: o.rate, net: o.net, disc: o.disc, tx: o.tx, vat: o.vat, total: o.total, paid: Math.round(o.total * f) };
+      o.invoiceId = inv.id; invoices.push(inv);
+      if (inv.paid > 0) { const d = this.ad(issue, f === 1 ? 8 : 5), m = methods[payments.length % 4]; payments.push({ id: 'PAY-2026-0' + (181 + payments.length), invId: inv.id, custId: inv.custId, date: d > T ? T : d, amount: inv.paid, currency: inv.currency, method: m, ref: (m === 'Cash' ? 'ARK-' : m === 'Card' ? 'POS-' : 'BKT-') + (400120 + payments.length * 37) }); }
+    });
+    orders.reverse(); invoices.reverse(); payments.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    const cn = id => customers.find(c => c.id === id);
+    const nov = invoices.filter(i => i.issue >= '2026-11-01'), byC = {};
+    nov.forEach(i => { byC[i.custId] = (byC[i.custId] || 0) + this.eq(i.tx, i); });
+    const top = Object.entries(byC).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v]) => ({ a: cn(id).name, b: cn(id).city, c: this.mn(v, 'ALL') }));
+    const tir = invoices.filter(i => i.total > i.paid && cn(i.custId).city === 'Tiranë').map(i => ({ a: i.id, b: cn(i.custId).name, c: this.mn(i.total - i.paid, i.currency) }));
+    const eur = invoices.filter(i => i.currency === 'EUR' && i.issue >= '2026-10-01' && i.issue < '2026-11-01');
+    const convs = [
+      { id: 'c1', title: 'Top customers by revenue, November', updated: 'Today, 09:42', fixture: true, msgs: [
+        { role: 'user', text: 'Which customers generated the most revenue this month?' },
+        { role: 'assistant', text: 'Invoiced net sales (excl. VAT) for 1–16 Nov 2026, converted to ALL at the rate recorded on each invoice.', table: { cols: ['Customer', 'City', 'Net sales'], rows: top } },
+        { role: 'user', text: 'Only the ones in Tiranë.' },
+        { role: 'assistant', text: 'Same period and basis, filtered to customers with a Tiranë address.', table: { cols: ['Customer', 'City', 'Net sales'], rows: top.filter(r => r.b === 'Tiranë') } }] },
+      { id: 'c2', title: 'Outstanding invoices in Tiranë', updated: 'Yesterday, 16:10', fixture: true, msgs: [
+        { role: 'user', text: 'Show outstanding invoices from Tirana.' },
+        { role: 'assistant', text: tir.length + ' invoices with an open balance. Amounts are in each invoice\u2019s own currency.', table: { cols: ['Invoice', 'Customer', 'Outstanding'], rows: tir } }] },
+      { id: 'c3', title: 'EUR sales, October', updated: '12 Nov', fixture: true, msgs: [
+        { role: 'user', text: 'What were our sales in EUR last month?' },
+        { role: 'assistant', text: 'Invoices issued in EUR between 1 and 31 Oct 2026.', kpis: [{ label: 'Net sales', value: this.mn(eur.reduce((a, i) => a + i.tx, 0), 'EUR') }, { label: 'Gross incl. VAT', value: this.mn(eur.reduce((a, i) => a + i.total, 0), 'EUR') }, { label: 'Invoices', value: String(eur.length) }, { label: 'ALL equivalent (net)', value: this.mn(eur.reduce((a, i) => a + this.eq(i.tx, i), 0), 'ALL') }] }] }
+    ];
+    const sp = this.props && this.props.startPage;
+    return {
+      page: sp || 'dashboard', vw: 1440, collapsed: false, mobileNav: false, signedIn: true, q: '', searchOpen: false, notifOpen: false, userOpen: false, toast: null, confirmDlg: null,
+      reps, products, customers, orders, invoices, payments,
+      of: { q: '', status: 'all', currency: 'all', page: 0 }, orderSel: null,
+      inf: { q: '', status: 'all', currency: 'all', from: '', to: '' }, invSel: null, pq: '',
+      cf: { q: '', city: 'all', type: 'all', size: 'all', rep: 'all', status: 'all', page: 0 }, custSel: null, custTab: 'overview', cform: this.blankCust(), cerr: {},
+      pf: { q: '', cat: 'all', status: 'all' }, prodDlg: null, perr: {},
+      draft: this.blankDraft(''), derr: '', pay: null,
+      rf: { from: '2026-10-01', to: T, group: 'rep', cur: 'ALL_EQ' },
+      ai: { active: 'c1', input: '', pending: false, convs },
+      login: { email: '', pw: '', err: {}, loading: false }
+    };
+  }
+  blankCust() { return { name: '', nipt: '', type: '', size: '', status: 'active', contact: '', position: '', phone: '', email: '', city: '', muni: '', street: '', postal: '', addrType: 'Delivery', rep: '', notes: '' }; }
+  blankDraft(custId, st) { const c = custId && (st || this.state).customers.find(x => x.id === custId); return { custId: custId || '', repId: c ? c.rep : '', date: this.T, addr: 'cust', currency: 'ALL', rate: '1', note: '', lines: [{ k: 1, pid: '', qty: '', price: '', disc: '0' }] }; }
+  go(page, extra) { this.setState({ page, mobileNav: false, searchOpen: false, notifOpen: false, userOpen: false, orderSel: null, invSel: null, ...(extra || {}) }); try { window.scrollTo(0, 0); } catch (e) {} }
+  toast(msg) { clearTimeout(this.tt); this.setState({ toast: msg }); this.tt = setTimeout(() => this.setState({ toast: null }), 3800); }
+  bind(key, fields, extra) { const o = {}; fields.forEach(f => { o[f] = e => { const v = e && e.target ? e.target.value : e; this.setState(st => ({ [key]: { ...st[key], [f]: v, ...(extra || {}) } })); }; }); return o; }
+  pager(pg, pages, n, size, set) { return { label: (n ? pg * size + 1 : 0) + '–' + Math.min(n, (pg + 1) * size) + ' of ' + n, page: 'Page ' + (pg + 1) + ' of ' + pages, prevDis: pg === 0, nextDis: pg >= pages - 1, onPrev: () => set(Math.max(0, pg - 1)), onNext: () => set(Math.min(pages - 1, pg + 1)) }; }
+  finRows(x, cur) { return { rows: [{ k: 'Subtotal', v: this.mn(x.net, cur) }, { k: 'Discounts', v: '−' + this.mn(x.disc, cur) }, { k: 'Taxable amount', v: this.mn(x.tx, cur) }, { k: 'VAT', v: this.mn(x.vat, cur) }], total: this.mn(x.total, cur), hasEq: cur !== 'ALL', eq: cur !== 'ALL' ? '≈ ' + this.mn(Math.round(x.total * x.rate), 'ALL') + ' at 1 ' + cur + ' = ' + (+x.rate).toFixed(2) + ' ALL' : '' }; }
+  itemsOf(o) { return o.items.map(it => { const p = this.state.products.find(x => x.id === it.pid); const l = this.line(it, p); return { name: p.name, sku: p.sku, qty: (+it.qty).toLocaleString('en-US') + ' ' + p.unit, price: this.mn(it.price), disc: (+it.disc) + '%', vat: p.vat + '%', total: this.mn(l.total) }; }); }
+  setOrder(id, patch, msg) { this.setState(st => ({ orders: st.orders.map(o => o.id === id ? { ...o, ...patch } : o) })); this.toast(msg); }
+  invoiceOrder(id) {
+    const st = this.state, o = st.orders.find(x => x.id === id), c = st.customers.find(x => x.id === o.custId);
+    const n = Math.max(...st.invoices.map(i => +i.id.slice(-4))) + 1, invId = 'INV-2026-' + String(n).padStart(4, '0');
+    const inv = { id: invId, orderId: o.id, custId: o.custId, repId: o.repId, issue: this.T, due: this.ad(this.T, c.size === 'Small' ? 15 : 30), currency: o.currency, rate: o.rate, net: o.net, disc: o.disc, tx: o.tx, vat: o.vat, total: o.total, paid: 0 };
+    this.setState({ orders: st.orders.map(x => x.id === id ? { ...x, status: 'Invoiced', invoiceId: invId } : x), invoices: [inv, ...st.invoices] });
+    this.toast('Invoice ' + invId + ' issued in preview. Values are frozen from here on.');
+  }
+  startOrder(custId) { this.setState(st => ({ draft: this.blankDraft(custId, st), derr: '' })); this.go('newOrder'); }
+  setLine(i, patch) { this.setState(st => ({ draft: { ...st.draft, lines: st.draft.lines.map((l, j) => j === i ? { ...l, ...patch } : l) } })); }
+  addLine() { this.setState(st => ({ draft: { ...st.draft, lines: [...st.draft.lines, { k: Date.now(), pid: '', qty: '', price: '', disc: '0' }] } })); }
+  priceFor(pid, cur, rate) { const p = this.state.products.find(x => x.id === pid); if (!p) return ''; const r = cur === 'ALL' ? 1 : (parseFloat(rate) || 0); return r ? (Math.round(p.price / r) / 100).toFixed(2) : ''; }
+  setCurrency(cur) { this.setState(st => { const rate = cur === 'ALL' ? '1' : cur === 'EUR' ? '97.80' : '91.40'; return { draft: { ...st.draft, currency: cur, rate, lines: st.draft.lines.map(l => l.pid ? { ...l, price: this.priceFor(l.pid, cur, rate) } : l) } }; }); }
+  saveOrder(status) {
+    const st = this.state, d = st.draft, rate = d.currency === 'ALL' ? 1 : parseFloat(d.rate);
+    const lines = d.lines.filter(l => l.pid);
+    if (!d.custId) return this.setState({ derr: 'Select a customer.' });
+    if (!(rate > 0)) return this.setState({ derr: 'Enter a valid exchange rate.' });
+    if (!lines.length) return this.setState({ derr: 'Add at least one product line.' });
+    if (lines.some(l => !(+l.qty > 0) || !(parseFloat(l.price) >= 0) || !(+l.disc >= 0 && +l.disc <= 100))) return this.setState({ derr: 'Check highlighted lines: quantity must be above zero and discount between 0 and 100%.' });
+    const c = st.customers.find(x => x.id === d.custId), n = Math.max(...st.orders.map(o => +o.id.slice(-4))) + 1, id = 'SO-2026-' + String(n).padStart(4, '0');
+    const items = lines.map(l => ({ pid: l.pid, qty: +l.qty, disc: +l.disc, price: Math.round(parseFloat(l.price) * 100) }));
+    const o = Object.assign({ id, custId: c.id, repId: d.repId || c.rep, date: d.date, currency: d.currency, rate, status, address: d.addr === 'cust' ? c.street + ', ' + c.city : 'Pickup at warehouse, Vorë', invoiceId: null, items }, this.tot(items, st.products));
+    this.setState({ orders: [o, ...st.orders], draft: this.blankDraft(''), derr: '' });
+    this.go('orders', { orderSel: id });
+    this.toast(id + ' saved as ' + status.toLowerCase() + ' in preview. In production, totals come back from POST /api/orders.');
+  }
+  openPay(invId) { this.setState({ pay: { invId: invId || '', amount: '', date: this.T, method: 'Bank transfer', ref: '', err: '' } }); }
+  savePay() {
+    const st = this.state, p = st.pay, inv = st.invoices.find(i => i.id === p.invId);
+    if (!inv) return this.setState({ pay: { ...p, err: 'Select an invoice.' } });
+    const amt = Math.round((parseFloat(p.amount) || 0) * 100), out = inv.total - inv.paid;
+    if (amt <= 0 || amt > out) return this.setState({ pay: { ...p, err: 'Enter an amount between 0.01 and ' + this.mn(out, inv.currency) + '.' } });
+    if (!p.date) return this.setState({ pay: { ...p, err: 'Enter the payment date.' } });
+    if (p.method !== 'Cash' && !p.ref.trim()) return this.setState({ pay: { ...p, err: 'Enter the bank or POS reference.' } });
+    const n = Math.max(...st.payments.map(x => +x.id.slice(-4))) + 1;
+    const pay = { id: 'PAY-2026-' + String(n).padStart(4, '0'), invId: inv.id, custId: inv.custId, date: p.date, amount: amt, currency: inv.currency, method: p.method, ref: p.ref.trim() || 'ARK-' + (500000 + n) };
+    this.setState({ invoices: st.invoices.map(i => i.id === inv.id ? { ...i, paid: i.paid + amt } : i), payments: [pay, ...st.payments], pay: null });
+    this.toast('Payment ' + pay.id + ' of ' + this.mn(amt, inv.currency) + ' recorded in preview.');
+  }
+  saveCust() {
+    const f = this.state.cform, e = {};
+    if (!f.name.trim()) e.name = 'Business name is required.';
+    if (!/^[A-Z]\d{8}[A-Z]$/.test(f.nipt.trim().toUpperCase())) e.nipt = 'NIPT is one letter, eight digits, one letter (e.g. L12345678A).';
+    else if (this.state.customers.some(c => c.nipt === f.nipt.trim().toUpperCase())) e.nipt = 'A customer with this NIPT already exists.';
+    if (!f.type) e.type = 'Select a business type.';
+    if (!f.size) e.size = 'Select a business size.';
+    if (!f.contact.trim()) e.contact = 'Contact name is required.';
+    if (!/^\+?[0-9 ]{8,16}$/.test(f.phone.trim())) e.phone = 'Use digits only, e.g. +355 69 123 4567.';
+    if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) e.email = 'Enter a valid email address.';
+    if (!f.city) e.city = 'Select a city.';
+    if (!f.street.trim()) e.street = 'Street address is required.';
+    if (f.postal && !/^\d{4}$/.test(f.postal.trim())) e.postal = 'Albanian postal codes have four digits.';
+    const rep = f.rep || ((this.props.role ?? 'manager') === 'rep' ? 'E01' : '');
+    if (!rep) e.rep = 'Assign a sales representative.';
+    if (Object.keys(e).length) return this.setState({ cerr: e });
+    const id = 'C-' + (Math.max(...this.state.customers.map(c => +c.id.slice(2))) + 1);
+    const c = { id, name: f.name.trim(), nipt: f.nipt.trim().toUpperCase(), city: f.city, type: f.type, size: f.size, rep, active: f.status === 'active', contact: f.contact.trim(), position: f.position, phone: f.phone.trim(), email: f.email.trim(), street: f.street.trim(), postal: f.postal, muni: f.muni || f.city, addrType: f.addrType, notes: f.notes };
+    this.setState(st => ({ customers: [...st.customers, c], cform: this.blankCust(), cerr: {} }));
+    this.go('customerDetail', { custSel: id, custTab: 'overview' });
+    this.toast(c.name + ' registered in preview.');
+  }
+  saveProd() {
+    const f = this.state.prodDlg, e = {};
+    if (!f.name.trim()) e.name = 'Product name is required.';
+    if (!f.sku.trim()) e.sku = 'SKU is required.'; else if (this.state.products.some(p => p.sku === f.sku.trim().toUpperCase() && p.id !== f.id)) e.sku = 'SKU already in use.';
+    if (!f.cat) e.cat = 'Select a category.';
+    if (!f.unit.trim()) e.unit = 'Unit is required.';
+    if (!(parseFloat(f.price) > 0)) e.price = 'Enter a net price above zero.';
+    if (Object.keys(e).length) return this.setState({ perr: e });
+    const p = { id: f.id || 'P-' + String(this.state.products.length + 1).padStart(3, '0'), name: f.name.trim(), sku: f.sku.trim().toUpperCase(), cat: f.cat, unit: f.unit.trim(), price: Math.round(parseFloat(f.price) * 100), vat: +f.vat, active: f.active === 'active' };
+    this.setState(st => ({ products: f.id ? st.products.map(x => x.id === f.id ? p : x) : [...st.products, p], prodDlg: null, perr: {} }));
+    this.toast(p.name + (f.id ? ' updated' : ' created') + ' in preview.');
+  }
+  send() {
+    const ai = this.state.ai, text = ai.input.trim(); if (!text || ai.pending) return;
+    let convs = ai.convs, active = ai.active;
+    if (!convs.find(c => c.id === active)) { active = 'c' + Date.now(); convs = [{ id: active, title: 'New conversation', updated: 'Just now', fixture: false, msgs: [] }, ...convs]; }
+    convs = convs.map(c => c.id === active ? { ...c, title: c.msgs.length ? c.title : text.slice(0, 52), updated: 'Just now', fixture: false, msgs: [...c.msgs, { role: 'user', text }] } : c);
+    this.setState({ ai: { ...ai, convs, active, input: '', pending: true } });
+    clearTimeout(this.at);
+    this.at = setTimeout(() => this.setState(st => ({ ai: { ...st.ai, pending: false, convs: st.ai.convs.map(c => c.id === active ? { ...c, msgs: [...c.msgs, { role: 'assistant', error: true, text: 'The assistant service is not connected in this preview, so no data was queried. In production this message is sent to POST /api/assistant/conversations/{id}/messages, which runs the model server-side against data your role can access.' }] } : c) } })), 1100);
+  }
+  newConv() { this.setState(st => { const id = 'c' + Date.now(); return { ai: { ...st.ai, active: id, input: '', convs: [{ id, title: 'New conversation', updated: 'Just now', fixture: false, msgs: [] }, ...st.ai.convs] } }; }); }
+  doLogin() {
+    const l = this.state.login, err = {};
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(l.email.trim())) err.email = 'Enter your work email.';
+    if (l.pw.length < 8) err.pw = 'Password must be at least 8 characters.';
+    if (Object.keys(err).length) return this.setState({ login: { ...l, err } });
+    this.setState({ login: { ...l, err: {}, loading: true } });
+    setTimeout(() => this.setState({ signedIn: true, page: 'dashboard', login: { email: '', pw: '', err: {}, loading: false } }), 900);
+  }
+
+  renderVals() {
+    const s = this.state, T = this.T, role = this.props.role ?? 'manager', ds = this.props.dataState ?? 'ready';
+    const RC = {
+      rep: { user: 'Arben Hoxha', title: 'Sales representative', ini: 'AH', nav: ['dashboard', 'orders', 'invoices', 'payments', 'customers', 'products', 'reports', 'assistant'], co: 1, rp: 0, ep: 0, cc: 1, inv: 0 },
+      manager: { user: 'Valbona Gjoka', title: 'Sales manager', ini: 'VG', nav: ['dashboard', 'orders', 'invoices', 'payments', 'customers', 'products', 'categories', 'employees', 'reports', 'assistant'], co: 1, rp: 1, ep: 1, cc: 1, inv: 1 },
+      accountant: { user: 'Ilir Murati', title: 'Accountant', ini: 'IM', nav: ['dashboard', 'orders', 'invoices', 'payments', 'customers', 'reports', 'assistant'], co: 0, rp: 1, ep: 0, cc: 0, inv: 1 },
+      admin: { user: 'Sokol Prifti', title: 'Administrator', ini: 'SP', nav: ['dashboard', 'orders', 'invoices', 'payments', 'customers', 'products', 'categories', 'employees', 'reports', 'assistant', 'users', 'settings'], co: 1, rp: 1, ep: 1, cc: 1, inv: 1 }
+    };
+    const R = RC[role] || RC.manager;
+    const sec = { newOrder: 'orders', customerNew: 'customers', customerDetail: 'customers' };
+    let page = s.page;
+    if (!R.nav.includes(sec[page] || page) || (page === 'newOrder' && !R.co) || (page === 'customerNew' && !R.cc)) page = 'dashboard';
+    const sect = sec[page] || page;
+    const is = {}; ['dashboard', 'orders', 'newOrder', 'invoices', 'payments', 'customers', 'customerNew', 'customerDetail', 'products', 'categories', 'employees', 'reports', 'assistant', 'users', 'settings'].forEach(k => is[k] = page === k);
+    is.placeholder = is.users || is.settings;
+    const narrow = s.vw < 900;
+    const P = s.products, reps = s.reps, mn = (c, cur) => this.mn(c, cur), fd = d => this.fd(d), m0 = c => this.m0(c);
+    const repName = id => (reps.find(r => r.id === id) || {}).name || '—';
+    const cmap = {}; s.customers.forEach(c => cmap[c.id] = c);
+    const customers = s.customers.filter(c => role !== 'rep' || c.rep === 'E01');
+    const cids = new Set(customers.map(c => c.id));
+    const orders = s.orders.filter(o => cids.has(o.custId));
+    const invoices = s.invoices.filter(i => cids.has(i.custId)).map(i => ({ ...i, out: i.total - i.paid, status: this.payStatus(i) }));
+    const payments = s.payments.filter(p => cids.has(p.custId));
+    const L = { ready: ds === 'ready', loading: ds === 'loading', empty: ds === 'empty', error: ds === 'error' };
+    const skel = [{ w: '92%' }, { w: '74%' }, { w: '86%' }, { w: '61%' }, { w: '89%' }, { w: '70%' }];
+    const listState = (rows, noun, ep, clear) => ({ rows: L.ready ? rows : [], loading: L.loading, error: L.error, show: L.ready && rows.length > 0, empty: L.empty || (L.ready && rows.length === 0), emptyTitle: L.empty ? 'No ' + noun + ' yet' : 'No ' + noun + ' match these filters', emptyBody: L.empty ? 'Records appear here once ' + ep + ' returns them.' : 'Adjust or clear the filters to widen the results.', showClear: !L.empty, onClear: clear, errBody: 'Could not load ' + noun + '. ' + ep + ' returned 503 Service Unavailable.', onRetry: () => this.toast('Retry refetches ' + ep + '.') });
+
+    const I = this.icons();
+    const ic = (n, sz) => React.createElement('svg', { width: sz || 16, height: sz || 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', style: { display: 'block', flex: 'none' }, dangerouslySetInnerHTML: { __html: I[n] } });
+    const icons = {}; Object.keys(I).forEach(k => icons[k] = ic(k)); icons.big = { orders: ic('orders', 20), invoices: ic('invoices', 20), customers: ic('customers', 20), payments: ic('payments', 20), assistant: ic('assistant', 22), lock: ic('lock', 14) };
+
+    const G = [['Overview', [['dashboard', 'Dashboard']]], ['Sales', [['orders', 'Orders'], ['invoices', 'Invoices'], ['payments', 'Payments']]], ['Management', [['customers', 'Customers'], ['products', 'Products'], ['categories', 'Categories'], ['employees', 'Employees']]], ['Analytics', [['reports', 'Reports']]], ['Intelligence', [['assistant', 'AI Assistant']]], ['Administration', [['users', 'User management'], ['settings', 'Settings']]]];
+    const collapsed = s.collapsed && !narrow;
+    const nav = G.map(([label, items]) => ({ label, items: items.filter(([k]) => R.nav.includes(k)).map(([k, l]) => ({ key: k, label: l, icon: icons[k], tip: collapsed ? l : '', bg: sect === k ? 'var(--color-accent-100)' : 'transparent', fg: sect === k ? 'var(--color-accent-800)' : 'var(--color-text)', bar: sect === k ? 'var(--color-accent)' : 'transparent', weight: sect === k ? 500 : 400, onClick: () => this.go(k) })) })).filter(g => g.items.length);
+    const shell = {
+      labels: !collapsed, sideW: narrow ? '264px' : collapsed ? '64px' : '236px', sidePos: narrow ? 'fixed' : 'sticky', sideDisp: narrow && !s.mobileNav ? 'none' : 'flex', backdrop: narrow && s.mobileNav, navJust: collapsed ? 'center' : 'flex-start',
+      narrow, wide: !narrow, xwide: s.vw >= 1180, pad: narrow ? '16px' : '24px 28px 40px', onMenu: () => this.setState({ mobileNav: true }), onCloseNav: () => this.setState({ mobileNav: false }), onCollapse: () => this.setState({ collapsed: !s.collapsed }), collapseLabel: collapsed ? 'Expand sidebar' : 'Collapse sidebar'
+    };
+    const TT = { dashboard: ['Overview', 'Dashboard'], orders: ['Sales', 'Orders'], newOrder: ['Sales', 'Orders', 'New order'], invoices: ['Sales', 'Invoices'], payments: ['Sales', 'Payments'], customers: ['Management', 'Customers'], customerNew: ['Management', 'Customers', 'New customer'], customerDetail: ['Management', 'Customers', (cmap[s.custSel] || {}).name || 'Customer'], products: ['Management', 'Products'], categories: ['Management', 'Categories'], employees: ['Management', 'Employees'], reports: ['Analytics', 'Reports'], assistant: ['Intelligence', 'AI Assistant'], users: ['Administration', 'User management'], settings: ['Administration', 'Settings'] };
+    const crumbs = TT[page].map((t, i, a) => ({ t, sep: i > 0, weight: i === a.length - 1 ? 600 : 400, color: i === a.length - 1 ? 'var(--color-text)' : 'var(--color-neutral-700)', cursor: i === 1 && a.length === 3 ? 'pointer' : 'default', onClick: i === 1 && a.length === 3 ? () => this.go(sect) : undefined }));
+
+    const q = s.q.trim().toLowerCase(), results = [];
+    if (q.length >= 2) {
+      customers.filter(c => c.name.toLowerCase().includes(q) || c.nipt.toLowerCase().includes(q)).slice(0, 4).forEach(c => results.push({ kind: 'Customer', t: c.name, sub: c.city + ' · ' + c.nipt, onPick: () => this.go('customerDetail', { custSel: c.id, custTab: 'overview', q: '' }) }));
+      orders.filter(o => o.id.toLowerCase().includes(q) || cmap[o.custId].name.toLowerCase().includes(q)).slice(0, 3).forEach(o => results.push({ kind: 'Order', t: o.id, sub: cmap[o.custId].name + ' · ' + o.status, onPick: () => this.go('orders', { orderSel: o.id, q: '' }) }));
+      invoices.filter(i => i.id.toLowerCase().includes(q) || cmap[i.custId].name.toLowerCase().includes(q)).slice(0, 3).forEach(i => results.push({ kind: 'Invoice', t: i.id, sub: cmap[i.custId].name + ' · ' + i.status, onPick: () => this.go('invoices', { invSel: i.id, q: '' }) }));
+    }
+    const search = { q: s.q, open: s.searchOpen && q.length >= 2, results, none: results.length === 0, onChange: e => this.setState({ q: e.target.value, searchOpen: true }), onFocus: () => this.setState({ searchOpen: true, notifOpen: false, userOpen: false }), onBlur: () => setTimeout(() => this.setState({ searchOpen: false }), 120) };
+    const notes = [...invoices.filter(i => i.status === 'Overdue').map(i => ({ t: i.id + ' is overdue', sub: cmap[i.custId].name + ' · ' + mn(i.out, i.currency) + ' was due ' + fd(i.due), onClick: () => this.go('invoices', { invSel: i.id }) })), ...orders.filter(o => o.status === 'Confirmed').map(o => ({ t: o.id + ' is awaiting an invoice', sub: cmap[o.custId].name + ' · confirmed ' + fd(o.date), onClick: () => this.go('orders', { orderSel: o.id }) }))];
+    const top = {
+      notes, noteCount: String(notes.length), hasNotes: notes.length > 0, notifOpen: s.notifOpen, userOpen: s.userOpen,
+      onBell: () => this.setState({ notifOpen: !s.notifOpen, userOpen: false }), onUser: () => this.setState({ userOpen: !s.userOpen, notifOpen: false }),
+      onSignOut: () => this.setState({ signedIn: false, userOpen: false }), user: R.user, title: R.title, ini: R.ini,
+      canOrder: !!R.co, canPayQuick: !R.co && !!R.rp, onNewOrder: () => this.startOrder(''), onQuickPay: () => this.openPay(''),
+      scoped: role === 'rep', scopeNote: 'Showing your assigned customers only'
+    };
+
+    // dashboard
+    const sumEq = (arr, k) => arr.reduce((a, i) => a + this.eq(i[k], i), 0);
+    const dl = (a, b, label) => { if (!b) return { has: false }; const p = Math.round((a - b) / b * 1000) / 10; return { has: true, up: p >= 0, down: p < 0, txt: (p >= 0 ? '+' : '') + p.toFixed(1) + '%', label, color: p >= 0 ? 'oklch(0.42 0.08 155)' : 'oklch(0.48 0.14 25)' }; };
+    const nov = invoices.filter(i => i.issue >= '2026-11-01'), octM = invoices.filter(i => i.issue >= '2026-10-01' && i.issue <= '2026-10-16');
+    const novO = orders.filter(o => o.date >= '2026-11-01' && o.status !== 'Cancelled'), octO = orders.filter(o => o.date >= '2026-10-01' && o.date <= '2026-10-16' && o.status !== 'Cancelled');
+    const outInv = invoices.filter(i => i.out > 0);
+    const kpis = [
+      { label: 'Invoiced sales', sub: '1–16 Nov · net of VAT', value: m0(sumEq(nov, 'tx')), unit: 'ALL', icon: icons.big.invoices, d: dl(sumEq(nov, 'tx'), sumEq(octM, 'tx'), 'vs 1–16 Oct') },
+      { label: 'Orders', sub: '1–16 Nov · excl. cancelled', value: String(novO.length), unit: '', icon: icons.big.orders, d: dl(novO.length, octO.length, 'vs 1–16 Oct') },
+      { label: 'Active customers', sub: new Set(novO.map(o => o.custId)).size + ' ordered this month', value: String(customers.filter(c => c.active).length), unit: '', icon: icons.big.customers, d: { has: false } },
+      { label: 'Outstanding receivables', sub: outInv.length + ' open invoices · ' + outInv.filter(i => i.status === 'Overdue').length + ' overdue', value: m0(outInv.reduce((a, i) => a + this.eq(i.out, i), 0)), unit: 'ALL', icon: icons.big.payments, d: { has: false } }
+    ];
+    const hist = role === 'rep' ? [610, 580, 640, 700, 720, 810, 880, 910, 760, 730] : [2610, 2480, 2920, 3050, 3310, 3760, 4120, 4300, 3580, 3400];
+    const vals = [...hist.map(v => v * 100000), sumEq(nov, 'tx')], mx = Math.max(...vals), MS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
+    const months = vals.map((v, i) => ({ m: i === 10 ? 'Nov*' : MS[i], h: Math.max(2, Math.round(v / mx * 100)) + '%', v: (v / 1e8).toFixed(2), bg: i === 10 ? 'var(--color-accent-800)' : i === 9 ? 'var(--color-accent-600)' : 'var(--color-accent-400)', tip: MS[i] + ' 2026: ' + m0(v) + ' ALL' }));
+    const repBars = reps.map(r => ({ name: r.name, v: sumEq(nov.filter(i => i.repId === r.id), 'tx') })).filter(r => r.v > 0).sort((a, b) => b.v - a.v);
+    const rmx = Math.max(1, ...repBars.map(r => r.v)); repBars.forEach(r => { r.w = Math.round(r.v / rmx * 100) + '%'; r.val = m0(r.v); });
+    const stTot = invoices.reduce((a, i) => a + this.eq(i.total, i), 0) || 1;
+    const dist = ['Paid', 'Partial', 'Unpaid', 'Overdue'].map(n => { const a = invoices.filter(i => i.status === n), amt = a.reduce((x, i) => x + this.eq(i.total, i), 0); return { label: n, count: String(a.length), amt: m0(amt), w: (amt / stTot * 100).toFixed(1) + '%', color: this.badge(n).fg }; });
+    const pAgg = {};
+    nov.forEach(i => { const o = s.orders.find(x => x.id === i.orderId); if (!o) return; o.items.forEach(it => { const p = P.find(x => x.id === it.pid), l = this.line(it, p), a = pAgg[p.id] || (pAgg[p.id] = { name: p.name, unit: p.unit, q: 0, v: 0 }); a.q += +it.qty; a.v += this.eq(l.tx, i); }); });
+    const topProducts = Object.values(pAgg).sort((a, b) => b.v - a.v).slice(0, 5).map((a, i) => ({ rank: String(i + 1), name: a.name, qty: a.q.toLocaleString('en-US') + ' ' + a.unit, val: m0(a.v) }));
+    const cAgg = {}; nov.forEach(i => { cAgg[i.custId] = (cAgg[i.custId] || 0) + this.eq(i.tx, i); });
+    const topCustomers = Object.entries(cAgg).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, v], i) => ({ rank: String(i + 1), name: cmap[id].name, city: cmap[id].city, val: m0(v), onClick: () => this.go('customerDetail', { custSel: id, custTab: 'overview' }) }));
+    const oRow = o => ({ id: o.id, cust: cmap[o.custId].name, rep: repName(o.repId), date: fd(o.date), cur: o.currency, total: mn(o.total), badge: this.badge(o.status), onOpen: () => this.go(is.customerDetail ? 'customerDetail' : 'orders', is.customerDetail ? { custSel: s.custSel, custTab: s.custTab, orderSel: o.id, page: 'orders' } : { orderSel: o.id }) });
+    const oRowGo = o => ({ ...oRow(o), onOpen: () => this.go('orders', { orderSel: o.id }) });
+    const iRow = i => ({ id: i.id, cust: cmap[i.custId].name, issue: fd(i.issue), due: fd(i.due), cur: i.currency, total: mn(i.total), paid: mn(i.paid), out: mn(i.out), badge: this.badge(i.status), onOpen: () => this.go('invoices', { invSel: i.id }) });
+    const pRow = p => ({ id: p.id, inv: p.invId, cust: cmap[p.custId].name, date: fd(p.date), amount: mn(p.amount), cur: p.currency, method: p.method, ref: p.ref, onOpen: () => this.go('invoices', { invSel: p.invId }) });
+    const dash = { kpis, months, repBars, dist, topProducts, topCustomers, recentOrders: orders.slice(0, 5).map(oRowGo), recentInvoices: invoices.slice(0, 5).map(iRow), outstanding: outInv.slice().sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5).map(iRow), recentPayments: payments.slice(0, 5).map(pRow), L, errBody: 'Dashboard data could not be loaded. GET /api/dashboard/summary returned 503.', onRetry: () => this.toast('Retry refetches GET /api/dashboard/summary.') };
+
+    // orders
+    const of = s.of, oq = of.q.trim().toLowerCase();
+    const ofl = orders.filter(o => (!oq || o.id.toLowerCase().includes(oq) || cmap[o.custId].name.toLowerCase().includes(oq)) && (of.status === 'all' || o.status === of.status) && (of.currency === 'all' || o.currency === of.currency));
+    const OPS = 10, opages = Math.max(1, Math.ceil(ofl.length / OPS)), opg = Math.min(of.page || 0, opages - 1);
+    const ol = listState(ofl.slice(opg * OPS, opg * OPS + OPS).map(oRowGo), 'orders', 'GET /api/orders', () => this.setState({ of: { q: '', status: 'all', currency: 'all', page: 0 } }));
+    ol.pager = this.pager(opg, opages, ofl.length, OPS, p => this.setState(st => ({ of: { ...st.of, page: p } })));
+    ol.set = this.bind('of', ['q', 'status', 'currency'], { page: 0 }); ol.f = of;
+    let od = null; const so = s.orderSel && orders.find(o => o.id === s.orderSel);
+    if (so) {
+      const c = cmap[so.custId], inv = s.invoices.find(i => i.orderId === so.id), conf = ['Confirmed', 'Invoiced'].includes(so.status);
+      od = { id: so.id, badge: this.badge(so.status), cust: c.name, nipt: c.nipt, city: c.city, rep: repName(so.repId), date: fd(so.date), address: so.address, cur: so.currency, rate: so.currency === 'ALL' ? 'Not applicable' : '1 ' + so.currency + ' = ' + (+so.rate).toFixed(2) + ' ALL', items: this.itemsOf(so), fin: this.finRows(so, so.currency),
+        hasInv: !!inv, invId: inv ? inv.id : '', onInv: e => { e && e.preventDefault(); inv && this.go('invoices', { invSel: inv.id }); },
+        timeline: [{ t: 'Created', d: fd(so.date), done: true }, { t: 'Confirmed', d: conf ? fd(so.date) : 'Pending', done: conf }, { t: 'Invoiced', d: inv ? fd(inv.issue) : 'Pending', done: !!inv }].map(x => ({ ...x, dot: x.done ? 'var(--color-accent)' : 'transparent' })),
+        cancelled: so.status === 'Cancelled', canConfirm: so.status === 'Draft' && !!R.co, canInvoice: so.status === 'Confirmed' && !!R.inv, canCancel: ['Draft', 'Confirmed'].includes(so.status) && !!R.co,
+        hasActions: (so.status === 'Draft' && !!R.co) || (so.status === 'Confirmed' && (!!R.inv || !!R.co)),
+        onConfirm: () => this.setOrder(so.id, { status: 'Confirmed' }, so.id + ' confirmed.'),
+        onCancel: () => this.setState({ confirmDlg: { title: 'Cancel ' + so.id + '?', body: 'The order stays on record with status Cancelled for audit. This cannot be undone.', action: 'Cancel order', run: () => this.setOrder(so.id, { status: 'Cancelled' }, so.id + ' cancelled.') } }),
+        onInvoice: () => this.setState({ confirmDlg: { title: 'Issue invoice for ' + so.id + '?', body: 'Issuing freezes all amounts, VAT and the exchange rate. Corrections afterwards require a credit note.', action: 'Issue invoice', run: () => this.invoiceOrder(so.id) } }),
+        onClose: () => this.setState({ orderSel: null }) };
+    }
+
+    // new order
+    const d = s.draft, drate = d.currency === 'ALL' ? 1 : parseFloat(d.rate) || 0, dc = cmap[d.custId];
+    const sumD = { net: 0, disc: 0, tx: 0, vat: 0, total: 0 }; let nLines = 0;
+    const activeProducts = P.filter(p => p.active).map(p => ({ v: p.id, l: p.name + ' · ' + p.sku }));
+    const dlines = d.lines.map((l, i) => {
+      const p = P.find(x => x.id === l.pid), r = this.line({ qty: l.qty, price: Math.round((parseFloat(l.price) || 0) * 100), disc: l.disc }, p);
+      if (p) { nLines++; for (const k in sumD) sumD[k] += r[k]; }
+      const bad = 'oklch(0.55 0.15 25)', ok = 'var(--color-divider)';
+      return { k: l.k, n: String(i + 1), pid: l.pid, qty: l.qty, price: l.price, disc: l.disc, sku: p ? p.sku : '—', unit: p ? p.unit : '', vat: p ? p.vat + '%' : '—', total: p ? mn(r.total) : '—',
+        qB: l.qty !== '' && !(+l.qty > 0) ? bad : ok, dB: !(+l.disc >= 0 && +l.disc <= 100) ? bad : ok, pB: l.price !== '' && !(parseFloat(l.price) >= 0) ? bad : ok,
+        onProd: e => { const v = e.target.value; this.setLine(i, { pid: v, price: this.priceFor(v, d.currency, d.rate), qty: l.qty || '1' }); },
+        onQty: e => this.setLine(i, { qty: e.target.value }), onPrice: e => this.setLine(i, { price: e.target.value }), onDisc: e => this.setLine(i, { disc: e.target.value }),
+        onKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.addLine(); } },
+        canRemove: d.lines.length > 1, onRemove: () => this.setState(st => ({ draft: { ...st.draft, lines: st.draft.lines.filter((_, j) => j !== i) } })) };
+    });
+    const no = {
+      d, lines: dlines, cur: d.currency, isFx: d.currency !== 'ALL', customers: customers.filter(c => c.active).map(c => ({ v: c.id, l: c.name + ' · ' + c.city })), reps: reps.map(r => ({ v: r.id, l: r.name })), products: activeProducts,
+      addrOpts: dc ? [{ v: 'cust', l: dc.street + ', ' + dc.city }, { v: 'pickup', l: 'Pickup at warehouse, Vorë' }] : [{ v: 'cust', l: 'Select a customer first' }],
+      custInfo: dc ? dc.nipt + ' · ' + dc.type + ' · ' + dc.city : '', hasCust: !!dc,
+      curOpts: ['ALL', 'EUR', 'USD'].map(c => ({ label: c, checked: d.currency === c, onChange: () => this.setCurrency(c) })),
+      onCust: e => { const v = e.target.value, c = cmap[v]; this.setState(st => ({ draft: { ...st.draft, custId: v, repId: c ? c.rep : st.draft.repId, addr: 'cust' } })); },
+      set: this.bind('draft', ['repId', 'date', 'addr', 'rate', 'note']),
+      onAdd: () => this.addLine(), onDraft: () => this.saveOrder('Draft'), onConfirm: () => this.saveOrder('Confirmed'), onDiscard: () => { this.setState({ draft: this.blankDraft(''), derr: '' }); this.go('orders'); },
+      sum: [{ k: 'Subtotal', v: mn(sumD.net, d.currency) }, { k: 'Discounts', v: '−' + mn(sumD.disc, d.currency) }, { k: 'Taxable amount', v: mn(sumD.tx, d.currency) }, { k: 'VAT', v: mn(sumD.vat, d.currency) }],
+      total: mn(sumD.total, d.currency), eq: d.currency !== 'ALL' && drate ? '≈ ' + mn(Math.round(sumD.total * drate), 'ALL') + ' at the entered rate' : '', hasEq: d.currency !== 'ALL',
+      nLines: nLines + (nLines === 1 ? ' line' : ' lines'), err: s.derr, hasErr: !!s.derr, rateDis: d.currency === 'ALL', cols: s.vw < 1180 ? 'minmax(0,1fr)' : 'minmax(0,1fr) 340px'
+    };
+
+    // invoices
+    const inf = s.inf, iq = inf.q.trim().toLowerCase();
+    const ifl = invoices.filter(i => (!iq || i.id.toLowerCase().includes(iq) || cmap[i.custId].name.toLowerCase().includes(iq)) && (inf.status === 'all' || i.status === inf.status) && (inf.currency === 'all' || i.currency === inf.currency) && (!inf.from || i.issue >= inf.from) && (!inf.to || i.issue <= inf.to));
+    const il = listState(ifl.map(iRow), 'invoices', 'GET /api/invoices', () => this.setState({ inf: { q: '', status: 'all', currency: 'all', from: '', to: '' } }));
+    il.totals = L.ready ? ['ALL', 'EUR', 'USD'].map(c => { const a = ifl.filter(i => i.currency === c); return a.length ? { cur: c, n: a.length + (a.length === 1 ? ' invoice' : ' invoices'), total: mn(a.reduce((x, i) => x + i.total, 0), c), out: mn(a.reduce((x, i) => x + i.out, 0), c) } : null; }).filter(Boolean) : [];
+    il.set = this.bind('inf', ['q', 'status', 'currency', 'from', 'to']); il.f = inf; il.canPay = !!R.rp; il.onPay = () => this.openPay('');
+    let idr = null; const si = s.invSel && invoices.find(i => i.id === s.invSel);
+    if (si) {
+      const c = cmap[si.custId], o = s.orders.find(x => x.id === si.orderId), pays = s.payments.filter(p => p.invId === si.id);
+      idr = { id: si.id, badge: this.badge(si.status), cust: c.name, nipt: c.nipt, addr: c.street + ', ' + c.postal + ' ' + c.city, issue: fd(si.issue), due: fd(si.due), cur: si.currency, rate: si.currency === 'ALL' ? 'Not applicable' : '1 ' + si.currency + ' = ' + (+si.rate).toFixed(2) + ' ALL', orderId: si.orderId, onOrder: e => { e && e.preventDefault(); this.go('orders', { orderSel: si.orderId }); },
+        items: o ? this.itemsOf(o) : [], fin: this.finRows(si, si.currency), paid: mn(si.paid, si.currency), out: mn(si.out, si.currency),
+        pays: pays.map(p => ({ id: p.id, date: fd(p.date), method: p.method, ref: p.ref, amount: mn(p.amount, p.currency) })), hasPays: pays.length > 0, noPays: pays.length === 0,
+        canPay: !!R.rp && si.out > 0, onPay: () => this.openPay(si.id), onClose: () => this.setState({ invSel: null }) };
+    }
+    let pd = null;
+    if (s.pay) {
+      const pi = invoices.find(i => i.id === s.pay.invId), amt = Math.round((parseFloat(s.pay.amount) || 0) * 100);
+      const amtErr = s.pay.amount === '' ? '' : amt <= 0 ? 'Enter an amount greater than zero.' : pi && amt > pi.out ? 'Exceeds the outstanding balance of ' + mn(pi.out, pi.currency) + '.' : '';
+      pd = { ...s.pay, opts: invoices.filter(i => i.out > 0).map(i => ({ v: i.id, l: i.id + ' · ' + cmap[i.custId].name + ' · ' + mn(i.out, i.currency) + ' open' })), has: !!pi, cur: pi ? pi.currency : '—', total: pi ? mn(pi.total, pi.currency) : '—', paid: pi ? mn(pi.paid, pi.currency) : '—', out: pi ? mn(pi.out, pi.currency) : '—',
+        amtErr, hasAmtErr: !!amtErr, amtB: amtErr ? 'oklch(0.55 0.15 25)' : 'var(--color-divider)', hasErr: !!s.pay.err, saveDis: !!amtErr || !pi, noInv: !pi,
+        methods: ['Bank transfer', 'Cash', 'Card'].map(m => ({ label: m, checked: s.pay.method === m, onChange: () => this.setState(st => ({ pay: { ...st.pay, method: m } })) })),
+        onFull: () => pi && this.setState(st => ({ pay: { ...st.pay, amount: (pi.out / 100).toFixed(2) } })), onSave: () => this.savePay(), onClose: () => this.setState({ pay: null }), set: this.bind('pay', ['invId', 'amount', 'date', 'ref']) };
+    }
+
+    // payments
+    const pq = s.pq.trim().toLowerCase(), pfl = payments.filter(p => !pq || p.ref.toLowerCase().includes(pq) || p.invId.toLowerCase().includes(pq) || cmap[p.custId].name.toLowerCase().includes(pq));
+    const pl = listState(pfl.map(pRow), 'payments', 'GET /api/payments', () => this.setState({ pq: '' }));
+    pl.q = s.pq; pl.onQ = e => this.setState({ pq: e.target.value }); pl.canPay = !!R.rp; pl.onPay = () => this.openPay('');
+    pl.totals = L.ready ? ['ALL', 'EUR', 'USD'].map(c => { const a = pfl.filter(p => p.currency === c); return a.length ? { cur: c, n: a.length + (a.length === 1 ? ' payment' : ' payments'), total: mn(a.reduce((x, p) => x + p.amount, 0), c) } : null; }).filter(Boolean) : [];
+
+    // customers
+    const cf = s.cf, cq = cf.q.trim().toLowerCase();
+    const cfl = customers.filter(c => (!cq || c.name.toLowerCase().includes(cq) || c.nipt.toLowerCase().includes(cq) || c.id.toLowerCase().includes(cq)) && (cf.city === 'all' || c.city === cf.city) && (cf.type === 'all' || c.type === cf.type) && (cf.size === 'all' || c.size === cf.size) && (cf.rep === 'all' || c.rep === cf.rep) && (cf.status === 'all' || (cf.status === 'active') === c.active));
+    const CPS = 8, cpages = Math.max(1, Math.ceil(cfl.length / CPS)), cpg = Math.min(cf.page || 0, cpages - 1);
+    const cRow = c => ({ id: c.id, name: c.name, nipt: c.nipt, city: c.city, type: c.type, size: c.size, rep: repName(c.rep), badge: this.badge(c.active ? 'Active' : 'Inactive'), onOpen: () => this.go('customerDetail', { custSel: c.id, custTab: 'overview' }) });
+    const cl = listState(cfl.slice(cpg * CPS, cpg * CPS + CPS).map(cRow), 'customers', 'GET /api/customers', () => this.setState({ cf: { q: '', city: 'all', type: 'all', size: 'all', rep: 'all', status: 'all', page: 0 } }));
+    cl.pager = this.pager(cpg, cpages, cfl.length, CPS, p => this.setState(st => ({ cf: { ...st.cf, page: p } })));
+    cl.set = this.bind('cf', ['q', 'city', 'type', 'size', 'rep', 'status'], { page: 0 }); cl.f = cf; cl.canCreate = !!R.cc; cl.onNew = () => this.go('customerNew', { cerr: {} }); cl.showRep = role !== 'rep';
+    const opt = a => a.map(v => ({ v, l: v }));
+    const cOpts = { cities: opt(['Berat', 'Durrës', 'Elbasan', 'Fier', 'Korçë', 'Pogradec', 'Sarandë', 'Shkodër', 'Tiranë', 'Vlorë']), types: opt(['Supermarket', 'Grocery', 'Restaurant', 'Hotel', 'Café', 'Wholesale']), sizes: opt(['Small', 'Medium', 'Large']), reps: reps.map(r => ({ v: r.id, l: r.name })), addrTypes: opt(['Delivery', 'Billing', 'Registered office']) };
+    let cd = null; const sc = s.custSel && cids.has(s.custSel) && cmap[s.custSel];
+    if (sc) {
+      const ci = invoices.filter(i => i.custId === sc.id), co = orders.filter(o => o.custId === sc.id), cp = payments.filter(p => p.custId === sc.id);
+      const tabs = [['overview', 'Overview', ''], ['contacts', 'Contacts', '1'], ['addresses', 'Addresses', '1'], ['orders', 'Orders', String(co.length)], ['invoices', 'Invoices', String(ci.length)], ['payments', 'Payments', String(cp.length)]];
+      const t = {}; tabs.forEach(([k]) => t[k] = s.custTab === k);
+      cd = { ...sc, rep: repName(sc.rep), badge: this.badge(sc.active ? 'Active' : 'Inactive'), t,
+        tabs: tabs.map(([k, l, n]) => ({ label: l, n, hasN: !!n, bd: s.custTab === k ? 'var(--color-accent)' : 'transparent', fg: s.custTab === k ? 'var(--color-text)' : 'var(--color-neutral-700)', onClick: () => this.setState({ custTab: k }) })),
+        fin: ['ALL', 'EUR', 'USD'].map(cur => { const a = ci.filter(i => i.currency === cur); return a.length ? { cur, inv: mn(a.reduce((x, i) => x + i.total, 0), cur), paid: mn(a.reduce((x, i) => x + i.paid, 0), cur), out: mn(a.reduce((x, i) => x + i.out, 0), cur), overdue: String(a.filter(i => i.status === 'Overdue').length) } : null; }).filter(Boolean),
+        hasFin: ci.length > 0, noFin: ci.length === 0, terms: sc.size === 'Small' ? '15 days' : '30 days', lastOrder: co.length ? fd(co[0].date) : 'No orders yet',
+        orders: co.map(oRowGo), invoices: ci.map(iRow), payments: cp.map(pRow), hasOrders: co.length > 0, hasInvoices: ci.length > 0, hasPayments: cp.length > 0, noOrders: co.length === 0, noInvoices: ci.length === 0, noPayments: cp.length === 0,
+        canOrder: !!R.co && sc.active, onNewOrder: () => this.startOrder(sc.id), onBack: () => this.go('customers'), notesText: sc.notes || 'No notes recorded.' };
+    }
+    const cerr = s.cerr, cE = {}; Object.keys(this.blankCust()).forEach(k => cE[k] = { has: !!cerr[k], msg: cerr[k] || '', bd: cerr[k] ? 'oklch(0.55 0.15 25)' : 'var(--color-divider)' });
+    const cfm = { f: s.cform, set: this.bind('cform', Object.keys(this.blankCust())), e: cE, hasErr: Object.keys(cerr).length > 0, errCount: Object.keys(cerr).length + ' fields need attention', onSave: () => this.saveCust(), onCancel: () => { this.setState({ cform: this.blankCust(), cerr: {} }); this.go('customers'); }, repLocked: role === 'rep', repFixed: 'Arben Hoxha (you)',
+      statusOpts: [['active', 'Active'], ['inactive', 'Inactive']].map(([v, l]) => ({ label: l, checked: s.cform.status === v, onChange: () => this.setState(st => ({ cform: { ...st.cform, status: v } })) })) };
+
+    // products
+    const pf = s.pf, pq2 = pf.q.trim().toLowerCase(), cats = [...new Set(P.map(p => p.cat))].sort();
+    const prows = P.filter(p => (!pq2 || p.name.toLowerCase().includes(pq2) || p.sku.toLowerCase().includes(pq2)) && (pf.cat === 'all' || p.cat === pf.cat) && (pf.status === 'all' || (pf.status === 'active') === p.active)).map(p => ({ id: p.id, name: p.name, sku: p.sku, cat: p.cat, unit: p.unit, price: mn(p.price), vat: p.vat + '%', badge: this.badge(p.active ? 'Active' : 'Inactive'),
+      onEdit: () => this.setState({ prodDlg: { id: p.id, name: p.name, sku: p.sku, cat: p.cat, unit: p.unit, price: (p.price / 100).toFixed(2), vat: String(p.vat), active: p.active ? 'active' : 'inactive' }, perr: {} }) }));
+    const prl = listState(prows, 'products', 'GET /api/products', () => this.setState({ pf: { q: '', cat: 'all', status: 'all' } }));
+    prl.set = this.bind('pf', ['q', 'cat', 'status']); prl.f = pf; prl.cats = opt(cats); prl.canEdit = !!R.ep; prl.onNew = () => this.setState({ prodDlg: { id: '', name: '', sku: '', cat: '', unit: '', price: '', vat: '20', active: 'active' }, perr: {} });
+    let pdl = null;
+    if (s.prodDlg) { const pe = {}; ['name', 'sku', 'cat', 'unit', 'price'].forEach(k => pe[k] = { has: !!s.perr[k], msg: s.perr[k] || '', bd: s.perr[k] ? 'oklch(0.55 0.15 25)' : 'var(--color-divider)' });
+      const gross = Math.round((parseFloat(s.prodDlg.price) || 0) * 100 * (1 + (+s.prodDlg.vat) / 100));
+      pdl = { f: s.prodDlg, e: pe, title: s.prodDlg.id ? 'Edit ' + s.prodDlg.name : 'New product', cats: opt(cats), set: this.bind('prodDlg', ['name', 'sku', 'cat', 'unit', 'price', 'vat', 'active']), gross: 'Incl. VAT: ' + mn(gross, 'ALL'), onSave: () => this.saveProd(), onClose: () => this.setState({ prodDlg: null }) }; }
+
+    // categories, employees
+    const catRows = cats.map(c => { const a = P.filter(p => p.cat === c); return { name: c, n: String(a.length), active: String(a.filter(p => p.active).length), units: [...new Set(a.map(p => p.unit))].join(', ') }; });
+    const empRows = reps.map(r => { const ri = s.invoices.filter(i => i.repId === r.id && i.issue >= '2026-11-01'); return { id: r.id, name: r.name, region: r.region, customers: String(s.customers.filter(c => c.rep === r.id).length), orders: String(s.orders.filter(o => o.repId === r.id && o.date >= '2026-11-01' && o.status !== 'Cancelled').length), net: m0(sumEq(ri, 'tx')) }; });
+
+    // reports
+    const rf = s.rf, conv = rf.cur === 'ALL_EQ', rc = conv ? 'ALL' : rf.cur, val = (c, i) => conv ? this.eq(c, i) : c;
+    const rin = invoices.filter(i => i.issue >= rf.from && i.issue <= rf.to && (conv || i.currency === rf.cur));
+    const agg = {}, add = (key, label, sub, n, net, vat, gross) => { const a = agg[key] || (agg[key] = { label, sub, n: 0, net: 0, vat: 0, gross: 0 }); a.n += n; a.net += net; a.vat += vat; a.gross += gross; };
+    let rcols, rrows;
+    if (rf.group === 'outstanding') {
+      const oi = rin.filter(i => i.out > 0).sort((a, b) => a.due.localeCompare(b.due));
+      rcols = [{ t: 'Invoice', al: 'left' }, { t: 'Customer', al: 'left' }, { t: 'Due', al: 'left' }, { t: 'Days overdue', al: 'right' }, { t: 'Outstanding (' + rc + ')', al: 'right' }];
+      rrows = oi.map(i => { const days = Math.max(0, Math.round((new Date(T) - new Date(i.due)) / 864e5)); return { w: '0%', cells: [{ v: i.id, al: 'left' }, { v: cmap[i.custId].name, al: 'left' }, { v: fd(i.due), al: 'left' }, { v: days ? String(days) : '—', al: 'right' }, { v: mn(val(i.out, i), ''), al: 'right' }] }; });
+    } else {
+      rin.forEach(i => {
+        if (rf.group === 'product') { const o = s.orders.find(x => x.id === i.orderId); if (o) o.items.forEach(it => { const p = P.find(x => x.id === it.pid), l = this.line(it, p); add(p.id, p.name, p.sku, +it.qty, val(l.tx, i), val(l.vat, i), val(l.total, i)); }); }
+        else { const k = rf.group === 'rep' ? i.repId : rf.group === 'customer' ? i.custId : rf.group === 'currency' ? i.currency : i.issue.slice(0, 7); const lbl = rf.group === 'rep' ? repName(i.repId) : rf.group === 'customer' ? cmap[i.custId].name : rf.group === 'currency' ? 'Invoiced in ' + i.currency : i.issue.slice(0, 7); add(k, lbl, rf.group === 'customer' ? cmap[i.custId].city : '', 1, val(i.tx, i), val(i.vat, i), val(i.total, i)); }
+      });
+      const arr = Object.values(agg).sort((a, b) => b.net - a.net), amx = Math.max(1, ...arr.map(a => a.net));
+      const nLabel = rf.group === 'product' ? 'Quantity' : 'Invoices', gl = { rep: 'Representative', customer: 'Customer', product: 'Product', currency: 'Currency' }[rf.group];
+      rcols = [{ t: gl, al: 'left' }, { t: nLabel, al: 'right' }, { t: 'Net (' + rc + ')', al: 'right' }, { t: 'VAT', al: 'right' }, { t: 'Gross', al: 'right' }];
+      rrows = arr.map(a => ({ w: Math.round(a.net / amx * 100) + '%', cells: [{ v: a.label + (a.sub ? ' · ' + a.sub : ''), al: 'left' }, { v: a.n.toLocaleString('en-US'), al: 'right' }, { v: mn(a.net, ''), al: 'right' }, { v: mn(a.vat, ''), al: 'right' }, { v: mn(a.gross, ''), al: 'right' }] }));
+    }
+    const rsum = [{ label: 'Net sales', value: mn(rin.reduce((a, i) => a + val(i.tx, i), 0), rc) }, { label: 'VAT', value: mn(rin.reduce((a, i) => a + val(i.vat, i), 0), rc) }, { label: 'Gross invoiced', value: mn(rin.reduce((a, i) => a + val(i.total, i), 0), rc) }, { label: 'Outstanding', value: mn(rin.reduce((a, i) => a + val(i.out, i), 0), rc) }];
+    const rep = { f: rf, set: this.bind('rf', ['from', 'to']), cols: rcols, rows: rrows, hasRows: rrows.length > 0, noRows: rrows.length === 0, sum: rsum, count: rin.length + ' invoices in range', showBar: rf.group !== 'outstanding',
+      basis: conv ? 'Reporting currency: ALL. EUR and USD invoices are converted at the exchange rate recorded on each invoice; no current-rate revaluation.' : 'Showing ' + rf.cur + ' invoices only, in ' + rf.cur + '. No conversion applied.',
+      groups: [['rep', 'Representative'], ['customer', 'Customer'], ['product', 'Product'], ['currency', 'Currency'], ['outstanding', 'Outstanding']].map(([k, l]) => ({ label: l, checked: rf.group === k, onChange: () => this.setState(st => ({ rf: { ...st.rf, group: k } })) })),
+      curs: [['ALL_EQ', 'All → ALL'], ['ALL', 'ALL only'], ['EUR', 'EUR only'], ['USD', 'USD only']].map(([k, l]) => ({ label: l, checked: rf.cur === k, onChange: () => this.setState(st => ({ rf: { ...st.rf, cur: k } })) })) };
+
+    // assistant
+    const ai = s.ai, convA = ai.convs.find(c => c.id === ai.active);
+    const aiv = { convs: ai.convs.map(c => ({ id: c.id, title: c.title, updated: c.updated, bg: c.id === ai.active ? 'var(--color-accent-100)' : 'transparent', bar: c.id === ai.active ? 'var(--color-accent)' : 'transparent', onClick: () => this.setState(st => ({ ai: { ...st.ai, active: c.id } })) })),
+      msgs: convA ? convA.msgs.map(m => ({ ...m, isUser: m.role === 'user', isAi: m.role === 'assistant' && !m.error, isErr: !!m.error, hasTable: !!m.table, hasKpis: !!m.kpis, cols: m.table ? m.table.cols : [], rows: m.table ? m.table.rows : [], kp: m.kpis || [] })) : [],
+      empty: !convA || convA.msgs.length === 0, fixture: !!(convA && convA.fixture), title: convA ? convA.title : 'New conversation', input: ai.input, pending: ai.pending,
+      onInput: e => this.setState(st => ({ ai: { ...st.ai, input: e.target.value } })), onKey: e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this.send(); } }, onSend: () => this.send(), onNew: () => this.newConv(), sendDis: !ai.input.trim() || ai.pending,
+      suggestions: ['Which customers generated the most revenue this month?', 'Show outstanding invoices from Tirana.', 'What were our sales in EUR last month?', 'Which sales representative has the highest invoiced revenue?', 'Show the latest orders for Market Alba.'].map(t => ({ t, onClick: () => this.setState(st => ({ ai: { ...st.ai, input: t } })) })),
+      showList: !narrow, scope: role === 'rep' ? 'Answers are limited to your assigned customers.' : 'Answers use data your role (' + R.title.toLowerCase() + ') is authorized to read.' };
+
+    const lg = s.login;
+    const login = { ...lg, eE: { has: !!lg.err.email, msg: lg.err.email || '' }, pE: { has: !!lg.err.pw, msg: lg.err.pw || '' }, set: this.bind('login', ['email', 'pw']), onSubmit: e => { e && e.preventDefault && e.preventDefault(); this.doLogin(); }, btn: lg.loading ? 'Signing in…' : 'Sign in', narrow };
+    const cdlg = s.confirmDlg ? { ...s.confirmDlg, onRun: () => { const r = s.confirmDlg.run; this.setState({ confirmDlg: null }); r(); }, onClose: () => this.setState({ confirmDlg: null }) } : null;
+
+    return { is, icons, nav, shell, crumbs, search, top, dash, ol, od, hasOd: !!od, no, il, idr, hasIdr: !!idr, pd, hasPd: !!pd, pl, cl, cd, hasCd: !!cd, cfm, cOpts, prl, pdl, hasPdl: !!pdl, catRows, empRows, rep, aiv, login, signedIn: s.signedIn, signedOut: !s.signedIn, cdlg, hasCdlg: !!cdlg, toast: s.toast, hasToast: !!s.toast, skel, L, today: fd(T), roleTitle: R.title };
+  }
+}
+</script>
+</body>
+</html>
