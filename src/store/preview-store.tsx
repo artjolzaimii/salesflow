@@ -4,36 +4,24 @@
  * Preview-mode application store.
  *
  * Holds the in-memory copy of the fictional dataset plus the UI state the
- * prototype kept globally (drawers, dialogs, toast, order draft, preview
+ * prototype kept globally (drawers, dialogs, toast, preview
  * controls). Mutations run through the pure functions in
  * src/services/preview/operations.ts. Nothing is persisted: reloading the page
  * restores the fixtures.
  */
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { buildFixtureConversations, ASSISTANT_OFFLINE_REPLY } from "@/mocks/assistant";
-import { buildPreviewDataset, DEFAULT_RATES, PREVIEW_TODAY } from "@/mocks/fixtures";
+import { buildPreviewDataset, PREVIEW_TODAY } from "@/mocks/fixtures";
 import { formatMoney } from "@/lib/money";
-import type { Conversation, Currency, DataState, SalesDataset } from "@/lib/types";
-import type { DraftLine } from "@/lib/validation";
+import type { Conversation, DataState, SalesDataset } from "@/lib/types";
 import * as ops from "@/services/preview/operations";
-import type { CreateOrderInput, CreatePaymentInput } from "@/services/api";
+import type { CreatePaymentInput } from "@/services/api";
 
 export interface ConfirmRequest {
   title: string;
   body: string;
   action: string;
   run: () => void;
-}
-
-export interface OrderDraft {
-  customerId: string;
-  repId: string;
-  date: string;
-  address: "customer" | "pickup";
-  currency: Currency;
-  rate: string;
-  lines: DraftLine[];
-  error: string;
 }
 
 export interface PreviewState {
@@ -50,21 +38,13 @@ export interface PreviewState {
   mobileNavOpen: boolean;
   toast: string | null;
   confirm: ConfirmRequest | null;
+  /** Database order shown in the order drawer (orders are live since Phase 5C). */
   orderDrawerId: string | null;
   invoiceDrawerId: string | null;
   /** Open payment dialog, preselected invoice ("" = choose). */
   paymentDialog: { invoiceId: string } | null;
   /** Open product dialog: product id to edit, or "" for a new product. */
   productDialog: { productId: string } | null;
-  orderDraft: OrderDraft;
-}
-
-let lineKey = 1;
-export const blankLine = (): DraftLine => ({ key: lineKey++, productId: "", quantity: "", price: "", discount: "0" });
-
-export function blankDraft(data: SalesDataset, customerId = ""): OrderDraft {
-  const c = customerId ? data.customers.find((x) => x.id === customerId) : undefined;
-  return { customerId, repId: c ? c.repId : "", date: PREVIEW_TODAY, address: "customer", currency: "ALL", rate: DEFAULT_RATES.ALL, lines: [blankLine()], error: "" };
 }
 
 function initialState(): PreviewState {
@@ -85,7 +65,6 @@ function initialState(): PreviewState {
     invoiceDrawerId: null,
     paymentDialog: null,
     productDialog: null,
-    orderDraft: blankDraft(data),
   };
 }
 
@@ -139,35 +118,6 @@ function createPreviewStore() {
       req?.run();
     },
 
-    /* ----- orders ----- */
-    confirmOrder: (id: string) => {
-      set((s) => ({ data: ops.setOrderStatus(s.data, id, "Confirmed") }));
-      toast(id + " confirmed.");
-    },
-    /** Operational progress; allowed after invoicing (amounts stay locked). */
-    advanceOrder: (id: string, status: "Processing" | "Delivered") => {
-      set((s) => ({ data: ops.setOrderStatus(s.data, id, status) }));
-      toast(`${id} marked as ${status.toLowerCase()}.`);
-    },
-    cancelOrder: (id: string) => {
-      set((s) => ({ data: ops.setOrderStatus(s.data, id, "Cancelled") }));
-      toast(id + " cancelled.");
-    },
-    issueInvoice: (id: string) => {
-      const { data, invoice } = ops.issueInvoice(get().data, id, get().today);
-      set({ data });
-      toast("Invoice " + invoice.id + " issued in preview. Values are frozen from here on.");
-    },
-    createOrder: (input: CreateOrderInput) => {
-      const { data, order } = ops.createOrder(get().data, input);
-      set({ data, orderDraft: blankDraft(data), orderDrawerId: order.id });
-      toast(order.id + " saved as " + input.status.toLowerCase() + " in preview. In production, totals come back from POST /api/orders.");
-      return order;
-    },
-    startOrder: (customerId = "") => set((s) => ({ orderDraft: blankDraft(s.data, customerId) })),
-    updateDraft: (patch: Partial<OrderDraft> | ((d: OrderDraft) => Partial<OrderDraft>)) =>
-      set((s) => ({ orderDraft: { ...s.orderDraft, ...(typeof patch === "function" ? patch(s.orderDraft) : patch) } })),
-    resetDraft: () => set((s) => ({ orderDraft: blankDraft(s.data) })),
 
     /* ----- payments ----- */
     openPayment: (invoiceId = "") => set({ paymentDialog: { invoiceId } }),

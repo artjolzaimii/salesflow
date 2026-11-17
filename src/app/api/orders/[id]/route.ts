@@ -1,11 +1,19 @@
+import { z } from "zod";
 import { requireUser } from "@/server/auth/session";
-import { json, route, uuidParam } from "@/server/http";
-import { getOrder } from "@/server/services/orders";
-import { notFound } from "@/server/errors";
+import { json, readJson, route } from "@/server/http";
+import { idParam } from "@/server/route-params";
+import { getOrder, updateOrder } from "@/server/services/orders";
 
-export const GET = route<RouteContext<"/api/orders/[id]">>(async (_req, ctx) => {
+type Ctx = RouteContext<"/api/orders/[id]">;
+
+export const GET = route<Ctx>(async (_req, ctx) => {
   const p = await requireUser();
-  const id = uuidParam.safeParse((await ctx.params).id);
-  if (!id.success) throw notFound("Order");
-  return json({ order: await getOrder(p, id.data) });
+  return json({ order: await getOrder(p, await idParam(ctx.params, "id", "Order")) });
+});
+
+/** PATCH the full order body plus `version`; re-priced on the server. Draft and confirmed, never-invoiced orders only. */
+export const PATCH = route<Ctx>(async (req, ctx) => {
+  const p = await requireUser();
+  const id = await idParam(ctx.params, "id", "Order");
+  return json({ order: await updateOrder(p, id, await readJson(req, z.unknown())) });
 });

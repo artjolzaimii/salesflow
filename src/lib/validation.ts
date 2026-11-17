@@ -23,33 +23,6 @@ export function validateLogin(f: LoginForm): FieldErrors<keyof LoginForm> {
   return e;
 }
 
-/* ---------- order lines ---------- */
-
-export interface DraftLine {
-  key: number;
-  productId: string;
-  quantity: string;
-  price: string;
-  discount: string;
-}
-
-export const lineChecks = {
-  quantityInvalid: (l: DraftLine) => l.quantity !== "" && !(Number(l.quantity) > 0),
-  priceInvalid: (l: DraftLine) => l.price !== "" && !(parseFloat(l.price) >= 0),
-  discountInvalid: (l: DraftLine) => !(Number(l.discount) >= 0 && Number(l.discount) <= 100),
-};
-
-export function validateOrderDraft(d: { customerId: string; currency: string; rate: string; lines: DraftLine[] }): string | null {
-  const rate = d.currency === "ALL" ? 1 : parseFloat(d.rate);
-  const lines = d.lines.filter((l) => l.productId);
-  if (!d.customerId) return "Select a customer.";
-  if (!(rate > 0)) return "Enter a valid exchange rate.";
-  if (!lines.length) return "Add at least one product line.";
-  if (lines.some((l) => !(Number(l.quantity) > 0) || !(parseFloat(l.price) >= 0) || lineChecks.discountInvalid(l)))
-    return "Check highlighted lines: quantity must be above zero and discount between 0 and 100%.";
-  return null;
-}
-
 /* ---------- payment ---------- */
 
 export interface PaymentForm {

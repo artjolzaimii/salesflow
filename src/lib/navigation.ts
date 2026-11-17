@@ -15,7 +15,7 @@ export type SectionKey =
   | "users"
   | "settings";
 
-export type PageKey = SectionKey | "newOrder" | "customerNew" | "customerDetail";
+export type PageKey = SectionKey | "newOrder" | "editOrder" | "customerNew" | "customerDetail";
 
 export const SECTION_HREF: Record<SectionKey, string> = {
   dashboard: "/dashboard",
@@ -35,6 +35,7 @@ export const SECTION_HREF: Record<SectionKey, string> = {
 export const ROUTES = {
   ...SECTION_HREF,
   newOrder: "/orders/new",
+  editOrder: (id: string) => `/orders/${encodeURIComponent(id)}/edit`,
   customerNew: "/customers/new",
   customer: (id: string) => `/customers/${encodeURIComponent(id)}`,
   login: "/login",
@@ -81,6 +82,7 @@ export function pageFromPath(pathname: string): PageKey {
   const parts = pathname.split("/").filter(Boolean);
   const [first, second] = parts;
   if (first === "orders" && second === "new") return "newOrder";
+  if (first === "orders" && second && parts[2] === "edit") return "editOrder";
   if (first === "customers" && second === "new") return "customerNew";
   if (first === "customers" && second) return "customerDetail";
   if (first && first in SECTION_HREF) return first as SectionKey;
@@ -88,7 +90,7 @@ export function pageFromPath(pathname: string): PageKey {
 }
 
 export function sectionOf(page: PageKey): SectionKey {
-  if (page === "newOrder") return "orders";
+  if (page === "newOrder" || page === "editOrder") return "orders";
   if (page === "customerNew" || page === "customerDetail") return "customers";
   return page;
 }
@@ -106,6 +108,7 @@ export function breadcrumbTrail(page: PageKey, customerName?: string): string[] 
     dashboard: ["Overview", "Dashboard"],
     orders: ["Sales", "Orders"],
     newOrder: ["Sales", "Orders", "New order"],
+    editOrder: ["Sales", "Orders", "Edit order"],
     invoices: ["Sales", "Invoices"],
     payments: ["Sales", "Payments"],
     customers: ["Management", "Customers"],

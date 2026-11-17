@@ -11,7 +11,8 @@ import { Icon } from "@/components/ui/icon";
 import { ThemeMenuItem, ThemeToggle } from "./theme-toggle";
 import { qs } from "@/services/client/http";
 import { useApiQuery } from "@/services/client/query";
-import type { CustomerPage } from "@/services/client/types";
+import type { CustomerPage, OrderPage } from "@/services/client/types";
+import { ORDER_STATUS_LABEL } from "@/lib/labels";
 import { useDebounced } from "@/services/client/use-debounced";
 import { useGo } from "./use-go";
 
@@ -135,33 +136,37 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
 }
 
 /**
- * Customers are searched in the database (scoped by the server); orders and
+ * Customers and orders are searched in the database (scoped by the server);
  * invoices still come from preview data and are labelled as such.
  */
 function GlobalSearch({ onOpen }: { onOpen: () => void }) {
-  const { orders, invoices, customerById } = useScopedData();
+  const { invoices, customerById } = useScopedData();
   const go = useGo();
   const [q, setQ] = useState("");
   const [focused, setFocused] = useState(false);
   const term = q.trim().toLowerCase();
   const debounced = useDebounced(term);
   const live = useApiQuery<CustomerPage>(debounced.length >= 2 ? "/api/customers" + qs({ q: debounced, pageSize: 4 }) : null);
+  const liveOrders = useApiQuery<OrderPage>(debounced.length >= 2 ? "/api/orders" + qs({ q: debounced, pageSize: 3 }) : null);
 
   const results = useMemo(() => {
     if (term.length < 2) return [];
     const name = (id: string) => customerById[id].name;
     return [
       ...(live.data?.items ?? []).map((c) => ({ key: c.id, kind: "Customer", title: c.businessName, sub: `${c.city} · ${c.nipt}`, pick: () => go.customer(c.id) })),
-      ...orders
-        .filter((o) => o.id.toLowerCase().includes(term) || name(o.customerId).toLowerCase().includes(term))
-        .slice(0, 3)
-        .map((o) => ({ key: o.id, kind: "Order · preview", title: o.id, sub: `${name(o.customerId)} · ${o.status}`, pick: () => go.order(o.id) })),
+      ...(liveOrders.data?.items ?? []).map((o) => ({
+        key: o.id,
+        kind: "Order",
+        title: o.orderNumber,
+        sub: `${o.customer.businessName} · ${ORDER_STATUS_LABEL[o.status]}`,
+        pick: () => go.order(o.id),
+      })),
       ...invoices
         .filter((i) => i.id.toLowerCase().includes(term) || name(i.customerId).toLowerCase().includes(term))
         .slice(0, 3)
         .map((i) => ({ key: i.id, kind: "Invoice · preview", title: i.id, sub: `${name(i.customerId)} · ${i.status}`, pick: () => go.invoice(i.id) })),
     ];
-  }, [term, live.data, orders, invoices, customerById, go]);
+  }, [term, live.data, liveOrders.data, invoices, customerById, go]);
 
   const open = focused && term.length >= 2;
 
@@ -213,8 +218,9 @@ function GlobalSearch({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+/** Overdue invoices (preview data until the invoices module is connected). */
 function Notifications({ open, onToggle, onPick }: { open: boolean; onToggle: () => void; onPick: () => void }) {
-  const { orders, invoices, customerById } = useScopedData();
+  const { invoices, customerById } = useScopedData();
   const go = useGo();
 
   const notes = useMemo(
@@ -227,16 +233,8 @@ function Notifications({ open, onToggle, onPick }: { open: boolean; onToggle: ()
           sub: `${customerById[i.customerId].name} · ${formatMoney(i.outstanding, i.currency)} was due ${formatDate(i.dueDate)}`,
           pick: () => go.invoice(i.id),
         })),
-      ...orders
-        .filter((o) => !o.invoiceId && o.status !== "Draft" && o.status !== "Cancelled")
-        .map((o) => ({
-          key: o.id,
-          title: `${o.id} is awaiting an invoice`,
-          sub: `${customerById[o.customerId].name} · confirmed ${formatDate(o.date)}`,
-          pick: () => go.order(o.id),
-        })),
     ],
-    [orders, invoices, customerById, go],
+    [invoices, customerById, go],
   );
 
   return (

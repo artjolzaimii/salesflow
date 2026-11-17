@@ -35,12 +35,19 @@ export function route<C>(handler: Handler<C>): Handler<C> {
       const e = mapDatabaseError(raw);
       if (e instanceof AppError) return json({ error: { code: e.code, message: e.message, details: e.details } }, e.status);
       if (e instanceof z.ZodError) {
-        return json({ error: { code: "VALIDATION_FAILED", message: "Invalid request.", details: z.flattenError(e).fieldErrors } }, 422);
+        return json({ error: { code: "VALIDATION_FAILED", message: "Invalid request.", details: issueDetails(e) } }, 422);
       }
       console.error("[api] unhandled error", e);
       return json({ error: { code: "INTERNAL", message: "Something went wrong." } }, 500);
     }
   };
+}
+
+/** Zod issues → { "lines.1.quantity": [messages] }: full dotted paths, so forms can mark the exact field. */
+export function issueDetails(e: z.ZodError): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  for (const issue of e.issues) (out[issue.path.join(".") || "_"] ??= []).push(issue.message);
+  return out;
 }
 
 export function json(body: unknown, status = 200) {

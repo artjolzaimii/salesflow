@@ -1,7 +1,7 @@
 import { chromium, type Browser, type Page } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_PASSWORD } from "../support/env";
-import { freshNipt } from "../support/fixtures";
+import { db, freshNipt, NIPT } from "../support/fixtures";
 import { base } from "../support/http";
 
 /**
@@ -192,10 +192,73 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
   it("preview modules stay clearly labelled", async (ctx) => {
     if (!browser) return ctx.skip();
     const page = await signedIn("admin@salesflow.test");
-    for (const path of ["/dashboard", "/orders", "/invoices", "/payments", "/reports", "/assistant"]) {
+    for (const path of ["/dashboard", "/invoices", "/payments", "/reports", "/assistant"]) {
       await page.goto(base + path);
       await expect.poll(() => page.getByRole("note").filter({ visible: true }).getByText("Preview data").count(), { message: path }).toBe(1);
     }
+    await page.context().close();
+  });
+
+  it("orders: creates an order with server-confirmed totals, then confirms it from the drawer", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/orders");
+    await expect.poll(() => rowWith(page, "SO-2026-001").count()).toBe(1);
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0); // orders are live: no preview banner
+
+    await page.goto(base + "/orders/new");
+    await page.click("#no-cust");
+    await page.keyboard.type("Adriatik");
+    await page.getByRole("option", { name: /Distribucion Adriatik SHPK/ }).filter({ visible: true }).click();
+    await page.locator(".seg-opt", { hasText: "EUR" }).filter({ visible: true }).click();
+    await expect.poll(() => page.locator("#no-rate").inputValue()).toMatch(/^\d+\.\d{2,}$/);
+    const product = page.getByLabel("Product, line 1", { exact: true }).filter({ visible: true });
+    await product.click();
+    await page.keyboard.type("FOD-001");
+    await page.getByRole("option", { name: /Oriz 1kg/ }).filter({ visible: true }).click();
+    await page.getByLabel("Quantity, line 1", { exact: true }).filter({ visible: true }).fill("12.5");
+    await page.getByLabel("Discount percent, line 1", { exact: true }).filter({ visible: true }).fill("5");
+    await expect.poll(() => visibleText(page, "Confirmed by server").count()).toBe(1);
+    const shown = (await page.locator("span.font-heading.text-\\[24px\\]").filter({ visible: true }).textContent())!.trim();
+
+    await page.getByRole("button", { name: "Save as draft" }).click();
+    await page.waitForURL("**/orders");
+    const drawer = page.getByRole("dialog").filter({ visible: true });
+    const badge = (label: string) => drawer.locator(".tag").filter({ hasText: new RegExp(`^${label}$`) });
+    await expect.poll(() => badge("Draft").count()).toBe(1);
+    await expect.poll(() => drawer.getByText(shown, { exact: true }).count()).toBe(1); // saved total = the server-confirmed figure
+    await drawer.getByRole("button", { name: "Confirm order" }).click();
+    await expect.poll(() => badge("Confirmed").count()).toBe(1);
+    await expect.poll(() => drawer.getByRole("button", { name: "Mark as processing" }).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("orders: a representative can't change prices and sees only their orders", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.korce@salesflow.test");
+    await page.goto(base + "/orders");
+    await expect.poll(() => rowWith(page, "SO-2026-003").count()).toBe(1);
+    expect(await rowWith(page, "SO-2026-001").count()).toBe(0);
+    await page.goto(base + "/orders/new");
+    const product = page.getByLabel("Product, line 1", { exact: true }).filter({ visible: true });
+    await product.click();
+    await page.keyboard.type("DRK-001");
+    await page.getByRole("option", { name: /DRK-001/ }).filter({ visible: true }).click();
+    const price = page.getByLabel("Unit price, line 1", { exact: true }).filter({ visible: true });
+    await expect.poll(() => price.inputValue()).toBe("80.0000");
+    expect(await price.getAttribute("readonly")).not.toBeNull();
+    await page.context().close();
+  });
+
+  it("customer page starts an order for that customer", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.tirana@salesflow.test");
+    const alba = await db().customer.findUniqueOrThrow({ where: { nipt: NIPT.marketAlba } });
+    await page.goto(base + "/customers/" + alba.id);
+    await expect.poll(() => page.locator("h1.page-title").filter({ visible: true }).textContent()).toBe("Market Alba SHPK");
+    await page.locator("main").getByRole("button", { name: "New order" }).filter({ visible: true }).click();
+    await page.waitForURL(/\/orders\/new\?customer=/);
+    await expect.poll(() => page.locator("#no-cust").filter({ visible: true }).inputValue()).toContain("Market Alba SHPK");
     await page.context().close();
   });
 

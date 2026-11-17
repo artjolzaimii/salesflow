@@ -211,7 +211,8 @@ function DashboardReady() {
       <div className={GRID_2}>
         <RecentTable title="Recent orders" head={["Order", "Customer", "Date", "Total", "Status"]}>
           {scoped.orders.slice(0, 5).map((o: Order) => (
-            <tr key={o.id} className="clickable" onClick={() => go.order(o.id)}>
+            // Preview sample rows: not linked, since the order drawer now shows database orders only.
+            <tr key={o.id}>
               <td className="font-medium whitespace-nowrap">{o.id}</td>
               <td>{name(o.customerId)}</td>
               <td className="whitespace-nowrap">{formatDate(o.date)}</td>

@@ -46,9 +46,8 @@ export function useGo() {
         push(ROUTES.customer(id));
       },
       newOrder: (customerId = "") => {
-        actions.startOrder(customerId);
         actions.closeOverlays();
-        push(ROUTES.newOrder);
+        push(customerId ? `${ROUTES.newOrder}?customer=${encodeURIComponent(customerId)}` : ROUTES.newOrder);
       },
     };
   }, [router, pathname, actions]);

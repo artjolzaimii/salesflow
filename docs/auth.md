@@ -1,6 +1,6 @@
 # Authentication, authorization and business rules (Phase 5A)
 
-The business screens still run on preview fixtures. Sign-in, sessions, roles, page gates and the business-rule endpoints below are real and run against PostgreSQL.
+When this phase shipped, the business screens still ran on preview fixtures (customers, catalogue and orders are live since 5B/5C). Sign-in, sessions, roles, page gates and the business-rule endpoints below are real and run against PostgreSQL.
 
 ## Authentication
 
@@ -84,7 +84,7 @@ All routes return JSON with `Cache-Control: no-store` and error bodies of the fo
 | `POST /api/invoices/:id/replacement` | `{ issueDate, dueDate }` replacement for a cancelled invoice |
 | `POST /api/payments` | `{ invoiceId, amount: "12.34", paymentDate, method, reference?, idempotencyKey }`; 201 new, 200 replay |
 
-Phase 5B added the customer, employee, product, category and exchange-rate modules: see [api.md](api.md). Order creation, invoice issuance and the payment UI come later.
+Phase 5B added the customer, employee, product, category and exchange-rate modules, and Phase 5C the order module: see [api.md](api.md). Invoice issuance and the payment UI come later.
 
 ## Business rules
 

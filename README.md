@@ -6,7 +6,8 @@ Sales management frontend for wholesale and distribution (customers, orders, inv
 - **Phase 4** added PostgreSQL and Prisma with migrations, a seed and verified financial guards ([docs/database.md](docs/database.md)).
 - **Phase 5A** added Auth.js sign-in against the database, server-side role and ownership checks, the finalised business rules and their endpoints ([docs/auth.md](docs/auth.md)).
 - **Phase 5B** connected customers (with contacts and addresses), employees, products, categories and exchange rates to the database through the business APIs ([docs/api.md](docs/api.md)).
-- **Still preview:** dashboard, orders, invoices, payments, reports and the assistant run on fictional fixtures. Each shows a "Preview data" notice, and a reload resets them.
+- **Phase 5C** connected sales orders: listing, creation, editing before the financial lock, server-side pricing (discount before VAT, HALF_UP), EUR/USD at the stored manual rate, confirmation and operational status changes ([docs/api.md](docs/api.md#orders)).
+- **Still preview:** dashboard, invoices, payments, reports and the assistant run on fictional fixtures. Each shows a "Preview data" notice, and a reload resets them.
 
 ## Run
 
@@ -47,8 +48,8 @@ The role comes from the session. The sidebar footer keeps a **Data state** contr
 | `prisma/`, `prisma.config.ts` | Schema, migrations (incl. financial guards), seed. |
 | `scripts/` | Database verification (`verify.sql`, `verify-guards.ts`). |
 | `src/auth.ts`, `src/proxy.ts` | Auth.js configuration; optimistic redirect for requests without a session cookie. |
-| `src/server/` | Server-only code: Prisma client, auth (credentials, session/DAL, scope), domain (Decimal pricing, money validation), services (orders, invoices, payments, customers), HTTP helpers, retry. |
-| `src/app/api/` | Route handlers: Auth.js, `/api/me`, order status, invoice cancel/replacement, payments, scoped customer list. |
+| `src/server/` | Server-only code: Prisma client, auth (credentials, session/DAL, scope), domain (Decimal pricing, money validation), services (customers, employees, catalogue, exchange rates, orders and the shared order-pricing service, invoices, payments), HTTP helpers, retry. |
+| `src/app/api/` | Route handlers: Auth.js, `/api/me`, customers, employees, products, categories, exchange rates, orders (list, create, quote, edit, confirm, status), invoice cancel/replacement, payments. |
 | `src/lib/permissions.ts` | Central permission matrix (3 roles), enforced on the server, read by the UI. |
 | `src/lib/schemas/` | Zod request schemas shared by the API and the forms. |
 | `src/services/client/` | Browser side of the live modules: fetch wrapper with typed errors, query cache, response types derived from the services. |

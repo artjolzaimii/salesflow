@@ -10,7 +10,6 @@ import { Icon } from "@/components/ui/icon";
 import { Drawer, KeyValues } from "@/components/ui/overlay";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FinancialSummary, ItemsTable } from "@/components/sales/document-parts";
-import { useGo } from "@/components/layout/use-go";
 
 function Figure({ label, value, highlight }: { label: string; value: ReactNode; highlight?: boolean }) {
   return (
@@ -29,7 +28,6 @@ export function InvoiceDrawer() {
   const { invoices, customerById } = useScopedData();
   const role = useRole();
   const actions = useActions();
-  const go = useGo();
 
   const inv = id ? invoices.find((i) => i.id === id) : undefined;
   if (!inv) return null;
@@ -75,19 +73,8 @@ export function InvoiceDrawer() {
           ["Issued", formatDate(inv.issueDate)],
           ["Due", formatDate(inv.dueDate)],
           ["Exchange rate", <span key="r" className="tabular-nums">{formatRate(inv.currency, inv.exchangeRate)}</span>],
-          [
-            "Order",
-            <a
-              key="o"
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                go.order(inv.orderId);
-              }}
-            >
-              {inv.orderId}
-            </a>,
-          ],
+          // Preview invoice: its order is sample data, not a database order, so it is not linked.
+          ["Order", <span key="o">{inv.orderId}</span>],
         ]}
       />
 

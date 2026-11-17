@@ -1,44 +1,41 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { API_ENDPOINTS } from "@/services/api";
-import { formatDate, formatMoney } from "@/lib/money";
-import { usePreview } from "@/store/preview-store";
-import { listState, useRole, useScopedData } from "@/store/hooks";
+import { useState } from "react";
+import { formatDecimal } from "@/lib/decimal-format";
+import { ORDER_STATUS_LABEL, option } from "@/lib/labels";
+import { formatDate } from "@/lib/money";
+import { qs } from "@/services/client/http";
+import { useApiQuery } from "@/services/client/query";
+import type { EmployeePage, OrderPage } from "@/services/client/types";
+import { useDebounced } from "@/services/client/use-debounced";
+import { apiListState, useRole } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
+import { SelectOptions } from "@/components/ui/field";
 import { FilterRow, ListPanel } from "@/components/ui/list-panel";
 import { PageHeader } from "@/components/ui/page-header";
-import { paginate, Pager } from "@/components/ui/pager";
+import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useGo } from "@/components/layout/use-go";
 
 const PAGE_SIZE = 10;
-const BLANK = { q: "", status: "all", currency: "all" };
+const BLANK = { q: "", status: "all", currency: "all", rep: "all" };
 
+/** Orders from GET /api/orders. Representatives receive their own sales and their customers' orders only. */
 export function OrdersView() {
-  const { orders, customerById, repName } = useScopedData();
-  const dataState = usePreview((s) => s.dataState);
   const role = useRole();
   const go = useGo();
   const [f, setF] = useState(BLANK);
   const [page, setPage] = useState(0);
+  const q = useDebounced(f.q.trim());
   const set = (k: keyof typeof BLANK, v: string) => {
     setF((x) => ({ ...x, [k]: v }));
     setPage(0);
   };
 
-  const filtered = useMemo(() => {
-    const q = f.q.trim().toLowerCase();
-    return orders.filter(
-      (o) =>
-        (!q || o.id.toLowerCase().includes(q) || customerById[o.customerId].name.toLowerCase().includes(q)) &&
-        (f.status === "all" || (f.status === "Invoiced" ? !!o.invoiceId : o.status === f.status)) &&
-        (f.currency === "all" || o.currency === f.currency),
-    );
-  }, [orders, customerById, f]);
-
-  const paged = paginate(filtered, page, PAGE_SIZE);
-  const state = listState(dataState, paged.rows, "orders", API_ENDPOINTS.orders);
+  const reps = useApiQuery<EmployeePage>(role.scopedToOwnCustomers ? null : "/api/employees?active=true&pageSize=100&sort=lastName");
+  const list = useApiQuery<OrderPage>("/api/orders" + qs({ q, status: f.status, currency: f.currency, repId: f.rep, page: page + 1, pageSize: PAGE_SIZE }));
+  const filtered = !!q || Object.entries(f).some(([k, v]) => k !== "q" && v !== "all");
+  const state = apiListState(list, list.data?.items ?? [], "orders", filtered);
 
   return (
     <>
@@ -61,15 +58,11 @@ export function OrdersView() {
         }}
         filters={
           <FilterRow>
-            <input className="input w-[260px] max-w-full" type="search" aria-label="Search orders" placeholder="Order number or customer" value={f.q} onChange={(e) => set("q", e.target.value)} />
+            <input className="input w-[260px] max-w-full" type="search" aria-label="Search orders" placeholder="Order number, customer or NIPT" value={f.q} onChange={(e) => set("q", e.target.value)} />
             <select className="input w-auto" aria-label="Status" value={f.status} onChange={(e) => set("status", e.target.value)}>
               <option value="all">All statuses</option>
-              <option value="Draft">Draft</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Processing">Processing</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Invoiced">Invoiced (any status)</option>
+              <SelectOptions options={option(ORDER_STATUS_LABEL)} />
+              <option value="INVOICED">Invoiced (any status)</option>
             </select>
             <select className="input w-auto" aria-label="Currency" value={f.currency} onChange={(e) => set("currency", e.target.value)}>
               <option value="all">All currencies</option>
@@ -77,6 +70,12 @@ export function OrdersView() {
               <option value="EUR">EUR</option>
               <option value="USD">USD</option>
             </select>
+            {!role.scopedToOwnCustomers ? (
+              <select className="input w-auto" aria-label="Representative" value={f.rep} onChange={(e) => set("rep", e.target.value)}>
+                <option value="all">All representatives</option>
+                <SelectOptions options={(reps.data?.items ?? []).map((e) => ({ value: e.id, label: e.name }))} />
+              </select>
+            ) : null}
           </FilterRow>
         }
       >
@@ -97,16 +96,16 @@ export function OrdersView() {
             <tbody>
               {state.rows.map((o) => (
                 <tr key={o.id} className="clickable" onClick={() => go.order(o.id)}>
-                  <td className="font-medium whitespace-nowrap">{o.id}</td>
-                  <td>{customerById[o.customerId].name}</td>
-                  <td>{repName(o.repId)}</td>
-                  <td className="whitespace-nowrap">{formatDate(o.date)}</td>
-                  <td>{o.currency}</td>
-                  <td className="num whitespace-nowrap">{formatMoney(o.total)}</td>
+                  <td className="font-medium whitespace-nowrap">{o.orderNumber}</td>
+                  <td>{o.customer.businessName}</td>
+                  <td>{o.salesRep.name}</td>
+                  <td className="whitespace-nowrap">{formatDate(o.orderDate)}</td>
+                  <td>{o.currencyCode}</td>
+                  <td className="num whitespace-nowrap">{formatDecimal(o.grandTotal, 2, 2)}</td>
                   <td>
                     <span className="inline-flex flex-wrap gap-1">
-                      <StatusBadge label={o.status} bordered />
-                      {o.invoiceId ? <StatusBadge label="Invoiced" /> : null}
+                      <StatusBadge label={ORDER_STATUS_LABEL[o.status]} bordered />
+                      {o.invoiced ? <StatusBadge label="Invoiced" /> : null}
                     </span>
                   </td>
                   <td className="text-right">
@@ -126,7 +125,7 @@ export function OrdersView() {
             </tbody>
           </table>
         </div>
-        <Pager page={paged.page} pages={paged.pages} total={paged.total} size={PAGE_SIZE} onPage={setPage} />
+        <Pager page={page} pages={list.data?.pages ?? 1} total={list.data?.total ?? 0} size={PAGE_SIZE} onPage={setPage} />
       </ListPanel>
     </>
   );

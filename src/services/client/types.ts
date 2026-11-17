@@ -1,7 +1,8 @@
 import type { getCustomer, listCustomers } from "@/server/services/customers";
 import type { getEmployee, listEmployees } from "@/server/services/employees";
 import type { getProduct, listCategories, listProducts } from "@/server/services/catalog";
-import type { listRates } from "@/server/services/exchange-rates";
+import type { currentRates, listRates, rateForOrderDate } from "@/server/services/exchange-rates";
+import type { getOrder, listOrders, quoteOrder } from "@/server/services/orders";
 
 /**
  * Response types derived from the services themselves (type-only imports; no
@@ -28,3 +29,11 @@ export type CategoryList = Out<typeof listCategories>;
 export type CategoryRow = CategoryList["items"][number];
 
 export type RatePage = Out<typeof listRates>;
+
+export type OrderPage = Out<typeof listOrders>;
+export type OrderRow = OrderPage["items"][number];
+export type OrderDetailDto = Out<typeof getOrder>;
+export type OrderItemDto = OrderDetailDto["items"][number];
+export type OrderQuoteDto = Out<typeof quoteOrder>;
+export type CurrentRatesDto = Out<typeof currentRates>;
+export type ApplicableRateDto = Out<typeof rateForOrderDate>;

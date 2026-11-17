@@ -6,6 +6,7 @@ import { assertPermission, type Principal } from "@/server/auth/principal";
 import { getDb } from "@/server/db";
 import { mapDatabaseError } from "@/server/errors";
 import { listQuery, paged, skipTake } from "@/server/query";
+import { applicableRate, noRateError } from "./order-pricing";
 
 /**
  * Manually entered reference rates: 1 unit of EUR or USD = allPerUnit ALL.
@@ -20,7 +21,7 @@ export const rateListQuery = listQuery(["effectiveAt", "createdAt"] as const, "e
 });
 
 /** Exact rate text with trailing zeros trimmed but at least 2 decimals: "97.8" → "97.80", "97.12345678". */
-function rateText(d: { toFixed: (n: number) => string }) {
+export function rateText(d: { toFixed: (n: number) => string }) {
   const [int, frac] = d.toFixed(8).split(".");
   return `${int}.${frac.replace(/0+$/, "").padEnd(2, "0")}`;
 }
@@ -66,4 +67,21 @@ export async function createRate(p: Principal, raw: unknown) {
   } catch (e) {
     throw mapDatabaseError(e);
   }
+}
+
+export const applicableRateQuery = z.object({
+  currency: z.enum(["ALL", ...FOREIGN_CURRENCIES]),
+  date: z.iso.date(),
+});
+
+/**
+ * The rate an order dated `date` would use (the same lookup the order pricing
+ * service performs). `rate` is null when none is in effect, with the reason.
+ */
+export async function rateForOrderDate(p: Principal, query: z.output<typeof applicableRateQuery>) {
+  assertPermission(p, "exchangeRates.view");
+  const day = new Date(query.date + "T00:00:00Z");
+  const r = await applicableRate(getDb(), query.currency, day);
+  if (!r) return { currencyCode: query.currency, rate: null, message: noRateError(query.currency, day).message };
+  return { currencyCode: query.currency, rate: { allPerUnit: rateText(r.allPerUnit), effectiveAt: r.effectiveAt }, message: null };
 }

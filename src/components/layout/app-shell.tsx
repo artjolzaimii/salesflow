@@ -22,7 +22,6 @@ import { Topbar } from "./topbar";
  */
 const PREVIEW_SECTIONS: Partial<Record<ReturnType<typeof sectionOf>, string>> = {
   dashboard: "The dashboard figures",
-  orders: "Orders",
   invoices: "Invoices",
   payments: "Payments",
   reports: "Reports",

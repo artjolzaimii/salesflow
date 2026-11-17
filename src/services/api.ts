@@ -10,14 +10,16 @@
  * Every endpoint is an assumption from design-reference/IMPLEMENTATION.md and
  * must be confirmed against the approved schema.
  */
-import type { Currency, Invoice, Order, Payment, PaymentMethod, Totals } from "@/lib/types";
+import type { Currency, Invoice, Payment, PaymentMethod } from "@/lib/types";
 import type { ClientSessionUser } from "@/lib/session-user";
 
 export const API_ENDPOINTS = {
   // Live (Phase 5A/5B). Customers also: PATCH /api/customers/:id, contacts and addresses sub-resources;
   // employees: GET/POST /api/employees, GET/PATCH /api/employees/:id, POST /api/employees/:id/reassign;
   // catalogue: GET/PATCH /api/products/:id, GET/POST /api/categories, PATCH/DELETE /api/categories/:id;
-  // exchange rates: GET/POST /api/exchange-rates. See docs/api.md.
+  // exchange rates: GET/POST /api/exchange-rates, GET /api/exchange-rates/applicable;
+  // orders (Phase 5C): GET/POST /api/orders, POST /api/orders/quote, GET/PATCH /api/orders/:id,
+  // POST /api/orders/:id/confirm, POST /api/orders/:id/status. See docs/api.md.
   login: "POST /api/auth/callback/credentials (Auth.js; the app uses a server action)",
   session: "GET /api/me",
   orderDetail: "GET /api/orders/:id",
@@ -33,9 +35,10 @@ export const API_ENDPOINTS = {
   updateProduct: "PATCH /api/products/:id",
   orders: "GET /api/orders",
   createOrder: "POST /api/orders",
+  updateOrder: "PATCH /api/orders/:id",
+  quoteOrder: "POST /api/orders/quote",
   confirmOrder: "POST /api/orders/:id/confirm",
-  cancelOrder: "POST /api/orders/:id/cancel",
-  invoiceOrder: "POST /api/orders/:id/invoice",
+  invoiceOrder: "POST /api/orders/:id/invoice (not implemented yet)",
   invoices: "GET /api/invoices",
   invoice: "GET /api/invoices/:id",
   payments: "GET /api/payments",
@@ -47,17 +50,6 @@ export const API_ENDPOINTS = {
 
 /** GET /api/me. Data scoping (reps: own customers) is applied on the server. */
 export type Session = ClientSessionUser;
-
-export interface CreateOrderInput {
-  customerId: string;
-  repId: string;
-  date: string;
-  currency: Currency;
-  exchangeRate: number;
-  deliveryAddressId: "customer" | "pickup";
-  status: "Draft" | "Confirmed";
-  items: { productId: string; quantity: number; discountPct: number; unitPrice: number }[];
-}
 
 export interface CreatePaymentInput {
   invoiceId: string;
@@ -77,15 +69,11 @@ export interface SalesReportQuery {
 
 /**
  * Contract for the modules still in preview. Customers, employees, products,
- * categories and exchange rates are live (see API_ENDPOINTS above and
+ * categories, exchange rates and orders are live (see API_ENDPOINTS above and
  * src/services/client/); their screens call those routes directly.
  */
 export interface SalesFlowApi {
   getSession(): Promise<Session>;
-  listOrders(): Promise<Order[]>;
-  createOrder(input: CreateOrderInput): Promise<Order & Totals>;
-  confirmOrder(id: string): Promise<Order>;
-  cancelOrder(id: string): Promise<Order>;
   invoiceOrder(id: string): Promise<Invoice>;
   listInvoices(): Promise<Invoice[]>;
   listPayments(): Promise<Payment[]>;

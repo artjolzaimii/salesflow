@@ -226,7 +226,3 @@ export const CUSTOMER_OPTIONS = {
   addressTypes: ["Delivery", "Billing", "Registered office"] as const,
 };
 
-/** Indicative exchange rates offered when switching a new order's currency. */
-export const DEFAULT_RATES: Record<Currency, string> = { ALL: "1", EUR: "97.80", USD: "91.40" };
-
-export const WAREHOUSE_PICKUP = "Pickup at warehouse, Vorë";

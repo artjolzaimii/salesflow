@@ -99,18 +99,25 @@ Mapping table updates:
 
 There are two nullable, additive columns that the designed screens already showed: `customers.notes` (text) and `employees.territory` (varchar 150). No other schema change was needed for the customer, employee, product, category and exchange-rate modules ([api.md](api.md)).
 
+## Phase 5C (sales orders, no migration)
+
+The order module uses the existing schema; no migration was needed.
+- **Pricing:** `src/server/services/order-pricing.ts` is the only place orders are priced (create, edit, quote, confirm). Order and item totals always come from it, never from the request.
+- **Exchange rate:** for EUR/USD the rate in effect on the order date (latest `exchange_rates` entry before the end of that day) is copied into `orders.all_per_unit`. New rates never change existing orders. Confirmation refuses a draft whose date now resolves to a different rate (`EXCHANGE_RATE_CHANGED`), so a back-dated correction is reviewed by re-saving.
+- **Order numbers:** `SO-<year of order date>-NNN`, continuing the highest existing number, assigned under a transaction-scoped advisory lock so concurrent creates never collide.
+- **`deliverySnapshot`:** `{ addressId, label, type, street, city, municipality, postalCode }` copied from the chosen customer address, or `{ pickup: true, label: "Pickup at warehouse" }`. Later address edits never change it.
+- **Editing:** DRAFT and CONFIRMED orders that have never been invoiced. The edit replaces the items and re-snapshots product name, SKU, unit and VAT from the catalogue. Once any invoice exists, the database trigger locks money, rate and items regardless.
+- **Optimistic concurrency:** edits, confirmation and status changes take the order row lock (`SELECT … FOR UPDATE`) and compare `updated_at` with the version the client loaded; a mismatch is a 409 `CONCURRENT_UPDATE`.
+
 ## Remaining issues and decisions
 
 - **Still open:**
   - Display codes for customers, employees and payments. Screens now show NIPT, name and SKU instead.
   - A "Blocked" customer state in the UI.
   - Payment terms (business size is optional in the database).
-  - The `deliverySnapshot` shape.
 - **Correcting amounts after invoicing:** a replacement invoice copies the locked order totals. Fixing an amount needs a new order, because credit notes are out of scope.
 - **Database rounding:** `numeric(18,2)` would still round sub-cent input. The payment service rejects it first, and every future write path must use the same validation (`src/server/domain/money.ts`).
 - **Service-layer rules for later phases:**
-  - Email and NIPT normalisation.
-  - Order numbering.
-  - Price-override enforcement on order create/update (`prices.override` and `isPriceOverride()` are ready).
-  - Freezing draft edits after confirmation.
   - Sequential fiscal invoice numbering (replacement numbers are `<original>-R<n>`).
+  - A status history table (the order drawer's timeline shows reached steps, not their dates).
+  - A discount ceiling for representatives, if the business wants one (any role that may create orders can enter 0–100 %).

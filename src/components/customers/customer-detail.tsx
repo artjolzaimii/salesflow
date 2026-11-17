@@ -9,6 +9,7 @@ import { apiFetch, errorMessage } from "@/services/client/http";
 import { invalidate, useApiQuery } from "@/services/client/query";
 import type { AddressDto, ContactDto, CustomerDetailDto } from "@/services/client/types";
 import { useActions } from "@/store/preview-store";
+import { useRole } from "@/store/hooks";
 import { Blueprint, Panel } from "@/components/ui/blueprint";
 import { Button } from "@/components/ui/button";
 import { KeyValues } from "@/components/ui/overlay";
@@ -44,6 +45,7 @@ export function CustomerDetail({ id }: { id: string }) {
 
 function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
   const go = useGo();
+  const role = useRole();
   const actions = useActions();
   const [tab, setTab] = useState<Tab>("overview");
   const [contactDialog, setContactDialog] = useState<ContactDto | "new" | null>(null);
@@ -93,9 +95,14 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
           <Button variant="ghost" icon="chevL" onClick={() => go.to(ROUTES.customers)}>
             All customers
           </Button>
-          <Button variant="primary" icon="edit" onClick={() => go.to(`/customers/${c.id}/edit`)}>
+          <Button variant={role.canCreateOrders && c.status === "ACTIVE" ? undefined : "primary"} icon="edit" onClick={() => go.to(`/customers/${c.id}/edit`)}>
             Edit customer
           </Button>
+          {role.canCreateOrders && c.status === "ACTIVE" ? (
+            <Button variant="primary" icon="plus" onClick={() => go.newOrder(c.id)}>
+              New order
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -295,7 +302,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
       ) : null}
 
       {tab === "orders" ? (
-        <TabPanel note>
+        <TabPanel note="Orders from the database. Select one to open it.">
           {h.orders.length === 0 ? (
             <EmptyLine>No orders for this customer.</EmptyLine>
           ) : (
@@ -312,7 +319,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
               </thead>
               <tbody>
                 {h.orders.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} className="clickable" onClick={() => go.order(o.id)}>
                     <td className="font-medium">{o.orderNumber}</td>
                     <td>{formatDate(o.orderDate)}</td>
                     <td>{o.salesRep?.name ?? "—"}</td>
@@ -408,12 +415,14 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
   );
 }
 
-function TabPanel({ children, action, note }: { children: ReactNode; action?: ReactNode; note?: boolean }) {
+const HISTORY_NOTE = "Read-only history from the database. Invoice and payment management are connected in a later phase.";
+
+function TabPanel({ children, action, note }: { children: ReactNode; action?: ReactNode; note?: boolean | string }) {
   return (
     <Blueprint as="section" className="flex flex-col gap-[10px] px-[18px] py-[14px]">
       {action ? <div className="flex justify-end">{action}</div> : null}
       {note ? (
-        <p className="m-0 text-[12px] text-neutral-700">Read-only history from the database. Order, invoice and payment management are connected in the next phase.</p>
+        <p className="m-0 text-[12px] text-neutral-700">{typeof note === "string" ? note : HISTORY_NOTE}</p>
       ) : null}
       <div className="overflow-x-auto">{children}</div>
     </Blueprint>
