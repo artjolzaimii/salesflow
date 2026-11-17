@@ -1,7 +1,7 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { authenticate } from "@/server/auth/credentials";
-import { logError } from "@/server/log";
+import { logError, logEvent } from "@/server/log";
 import { createSession, revokeSession, SESSION_MAX_AGE_SECONDS } from "@/server/auth/sessions";
 
 export { SESSION_MAX_AGE_SECONDS };
@@ -44,6 +44,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: { email: { type: "email" }, password: { type: "password" }, code: { type: "text" } },
       async authorize(raw, request) {
         const result = await authenticate(raw);
+        // Monitoring: outcome only, never the email or code.
+        if (result.status !== "ok" && result.status !== "mfa_required") logEvent("signin_failed", { reason: result.status === "mfa_invalid" ? "mfa" : "credentials" }, "warn");
         if (result.status === "mfa_required") throw new MfaRequired();
         if (result.status === "mfa_invalid") throw new MfaInvalid();
         if (result.status !== "ok") return null;

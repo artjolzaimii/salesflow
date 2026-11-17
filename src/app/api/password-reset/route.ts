@@ -1,4 +1,5 @@
 import { json, readJson, route } from "@/server/http";
+import { clientIp, enforce } from "@/server/rate-limit";
 import { completePasswordReset, resetCompletionSchema } from "@/server/services/users";
 
 /**
@@ -7,5 +8,7 @@ import { completePasswordReset, resetCompletionSchema } from "@/server/services/
  * 410 RESET_LINK_INVALID for unknown, used or expired links.
  */
 export const POST = route(async (req) => {
+  const ip = clientIp(req.headers);
+  if (ip) await enforce("password-reset", ip);
   return json(await completePasswordReset(await readJson(req, resetCompletionSchema)));
 });

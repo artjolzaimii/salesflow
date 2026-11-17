@@ -1,4 +1,4 @@
-# SalesFlow API (Phase 5A–6B)
+# SalesFlow API (Phase 5A–6C)
 
 Request path: browser → Route Handler (`src/app/api/**`) → service (`src/server/services/*`) → Prisma → PostgreSQL. React components never contain business rules; they call these routes through `src/services/client/` (fetch wrapper and a small query cache).
 
@@ -11,7 +11,8 @@ Request path: browser → Route Handler (`src/app/api/**`) → service (`src/ser
 | Record scope | Representatives see their assigned customers and those customers' orders, invoices and payments. Anything outside that scope is **404** `NOT_FOUND`, so the record's existence isn't revealed. |
 | Validation | Zod schemas in `src/lib/schemas/`, shared with the forms: **422** `VALIDATION_FAILED` with `details: { field: [messages] }`, keyed by the full path (`contacts.0.phone`, `lines.2.quantity`). |
 | Conflicts | **409**: `NO_EXCHANGE_RATE`, `EXCHANGE_RATE_CHANGED`, `CUSTOMER_NOT_ACTIVE`, `ORDER_NOT_EDITABLE`, `ORDER_FINANCIALLY_LOCKED`, `INVALID_STATUS_TRANSITION`, `CONCURRENT_UPDATE`, `DUPLICATE_NIPT`, `DUPLICATE_SKU`, `DUPLICATE_CATEGORY`, `DUPLICATE_EMAIL`, `DUPLICATE_RATE`, `CATEGORY_IN_USE`, `ADDRESS_IN_USE`, `DEFAULT_ADDRESS`, `PRIMARY_CONTACT`, `EMPLOYEE_HAS_CUSTOMERS`, `CANNOT_DEACTIVATE_SELF`, `ORDER_NOT_INVOICEABLE`, `ORDER_ALREADY_INVOICED`, `REPLACEMENT_REQUIRED`, `INVOICE_NOT_CANCELLED`, `ALREADY_REPLACED`, `INVOICE_CANCELLED`, `INVOICE_HAS_PAYMENTS`, `INVOICE_NOT_PAYABLE`, `OVERPAYMENT`, `IDEMPOTENCY_KEY_REUSED`, and the other financial codes listed in [auth.md](auth.md). |
-| Errors | Always `{ error: { code, message, details? } }`. Unexpected errors give **500** `INTERNAL` with no internals exposed. |
+| Errors | Always `{ error: { code, message, details? } }`. Unexpected errors give **500** `INTERNAL` with no internals exposed. Database outages give **503** `DATABASE_UNAVAILABLE` and runaway queries give **503** `QUERY_TIMEOUT`, both with `Retry-After`. |
+| Rate limits | **429** `RATE_LIMITED` with `Retry-After`. Limits are shared through the database: API writes per session, order/invoice/payment writes per session, and sign-in and password-reset per client IP. See [deployment.md](deployment.md) §10. |
 | Writes | POST, PATCH and DELETE must come from the same origin. POST and PATCH must be `application/json` (**415** otherwise). Responses carry `Cache-Control: no-store`. |
 | Lists | `?page=1&pageSize=25&sort=<field>&dir=asc\|desc&q=<text>` with `pageSize` ≤ 100. `sort` must be one of the endpoint's allowlisted fields (**422** otherwise). The response is `{ items, page, pageSize, total, pages }`; invoice and payment lists add per-currency `totals` over the whole filtered set. |
 | Money | Exact decimal strings, never floats: product prices have 4 dp, amounts 2 dp, rates up to 8 dp. Inputs with more decimals than allowed are rejected, not rounded. |
@@ -158,6 +159,9 @@ Permission `users.manage` (administrators only); everyone else gets 403. Respons
 | `POST /api/users/:id/mfa/reset` | MFA off, recovery codes deleted, sessions revoked (lost authenticator). |
 | `POST /api/users/:id/sessions/revoke` | `{ sessionId? }`: one session or all. |
 | `GET /api/audit-events` | `userId`, `type`, paging. Append-only security log. |
+| `GET /api/ops/summary` | Operations summary (Phase 6C). Counts and latencies only: database latency, connections and migrations; sign-ins and lockouts; assistant usage and estimated spend; security events. |
+
+`GET /api/health` is public. It returns 200 `{ status: "ok" }`, or 503 `{ status, reason }` where `reason` is `database`, `migrations` or `shutting_down`.
 
 ### Account security (any signed-in user, own account only)
 

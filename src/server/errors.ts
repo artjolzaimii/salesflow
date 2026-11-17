@@ -83,7 +83,33 @@ const DUPLICATES: Record<string, [string, string]> = {
   employees_user_id_key: ["DUPLICATE_EMPLOYEE_USER", "This user already has an employee record."],
 };
 
+/** Driver/adapter signs that the database can't be reached or dropped the connection. */
+const UNREACHABLE_KINDS = new Set(["DatabaseNotReachable", "ConnectionClosed", "SocketTimeout", "TooManyConnections", "DatabaseDoesNotExist"]);
+const UNREACHABLE_PG = new Set(["08000", "08001", "08003", "08004", "08006", "57P01", "57P02", "57P03", "53300"]);
+
+/**
+ * Database outages and query timeouts → 503 with Retry-After, instead of a
+ * generic 500: the request may succeed shortly, and nothing was half-written
+ * (every multi-row write runs in one transaction).
+ */
+export function databaseAvailabilityError(e: unknown): AppError | null {
+  if (e instanceof Prisma.PrismaClientInitializationError) return new AppError(503, "DATABASE_UNAVAILABLE", "The database is unavailable. Try again shortly.", { retryAfterSec: 10 });
+  if (e instanceof Prisma.PrismaClientKnownRequestError && ["P1001", "P1002", "P1008", "P1017", "P2024"].includes(e.code)) {
+    return new AppError(503, "DATABASE_UNAVAILABLE", "The database is unavailable. Try again shortly.", { retryAfterSec: 10 });
+  }
+  const cause = pgCause(e);
+  if (cause?.originalCode === "57014") return new AppError(503, "QUERY_TIMEOUT", "The request took too long. Narrow it down or try again.", { retryAfterSec: 5 });
+  if ((cause?.kind && UNREACHABLE_KINDS.has(cause.kind)) || (cause?.originalCode && UNREACHABLE_PG.has(cause.originalCode))) {
+    return new AppError(503, "DATABASE_UNAVAILABLE", "The database is unavailable. Try again shortly.", { retryAfterSec: 10 });
+  }
+  const code = (e as { code?: unknown } | null)?.code;
+  if (code === "ECONNREFUSED" || code === "ETIMEDOUT" || code === "ENOTFOUND") return new AppError(503, "DATABASE_UNAVAILABLE", "The database is unavailable. Try again shortly.", { retryAfterSec: 10 });
+  return null;
+}
+
 export function mapDatabaseError(e: unknown): unknown {
+  const unavailable = databaseAvailabilityError(e);
+  if (unavailable) return unavailable;
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
     const hit = DUPLICATES[pgCause(e)?.constraint?.index ?? ""];
     if (hit) return conflict(hit[0], hit[1]);

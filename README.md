@@ -32,6 +32,8 @@ npm run db:verify:guards
 npm run build && npm test
 ```
 
+Production deployment (container image, database roles, migrations, health, monitoring, backups, rollback, checklist): see **docs/deployment.md**.
+
 Sign in with a seeded **development** account: `admin@`, `manager@`, `rep.tirana@` or `rep.korce@salesflow.test`. The shared password is `SEED_DEMO_PASSWORD` from `.env`.
 
 The role comes from the session. Loading, empty and error states come from the real API responses.

@@ -5,7 +5,7 @@ import { businessDate } from "@/lib/business-date";
 import { assertPermission, type Principal } from "@/server/auth/principal";
 import { getDb } from "@/server/db";
 import { AppError, conflict, notFound } from "@/server/errors";
-import { logError } from "@/server/log";
+import { logError, logEvent } from "@/server/log";
 import { paged } from "@/server/query";
 import { assistantConfig, PRICES, type AssistantConfig } from "@/server/assistant/config";
 import { linkedRecords, unverifiedFigures } from "@/server/assistant/grounding";
@@ -303,6 +303,18 @@ export async function sendMessage(p: Principal, conversationId: string, raw: z.o
       },
     });
     await db.aIConversation.update({ where: { id: conversation.id }, data: { updatedAt: new Date() } });
+    // Usage and cost monitoring: counts only, never the question or answer.
+    logEvent("assistant_answer", {
+      status,
+      provider: provider.name,
+      model,
+      toolCalls,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      cacheReadTokens: usage.cacheReadTokens,
+      estimatedCostUsd: costUsd(model, usage),
+      errorCode,
+    }, status === "error" ? "warn" : "info");
     const dto = { userMessage: messageDto(userMessage), assistantMessage: messageDto(assistantMessage) };
     if (errorCode) {
       throw new AppError(errorCode === "ASSISTANT_TIMEOUT" ? 504 : 503, errorCode, answer, { assistantMessageId: assistantMessage.id });

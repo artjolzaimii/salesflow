@@ -26,3 +26,14 @@ export function describeError(e: unknown): { name: string; code?: string; messag
 export function logError(scope: string, e: unknown, context?: Record<string, string | number | boolean | null>) {
   console.error(`[${scope}]`, JSON.stringify({ ...describeError(e), ...(context ?? {}) }));
 }
+
+/**
+ * Operational event as one JSON line (for log-based monitoring and alerts):
+ * {"level":"info","event":"rate_limited","limit":"signin","ts":"…"}.
+ * Fields must be non-sensitive facts: no emails, tokens, secrets or amounts.
+ */
+export function logEvent(event: string, fields: Record<string, string | number | boolean | null> = {}, level: "info" | "warn" = "info") {
+  const line = JSON.stringify({ level, event, ...fields, ts: new Date().toISOString() });
+  if (level === "warn") console.warn(line);
+  else console.info(line);
+}

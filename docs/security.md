@@ -63,7 +63,7 @@ Reviewed and found sound (no change needed):
 - Session cookies get the `__Secure-` prefix and the `Secure` flag automatically over HTTPS.
 
 **Database:**
-- Use a dedicated application role with DML rights only; migrations run with a separate, more privileged role.
+- Use a dedicated application role with DML rights only; migrations run with a separate, more privileged role (`scripts/db/roles.sql`, `scripts/db/grants.sql`).
 - Size the pool per instance with `DATABASE_POOL_MAX`, so `instances × pool` stays under the server's `max_connections` (or use a pooler such as PgBouncer in transaction mode).
 - Keep `DATABASE_STATEMENT_TIMEOUT_MS` (default 30 s).
 - Turn on TLS to the database (`sslmode=require` in the URL) and automated backups with point-in-time recovery.
@@ -73,15 +73,26 @@ Reviewed and found sound (no change needed):
 - Never run `migrate dev`, `migrate reset` or the seed against production.
 - Migrations include triggers and CHECK constraints, so never apply SQL by hand.
 
-**Rate limiting at the edge.** Add per-IP limits in the platform firewall or WAF:
-- for example 20 sign-in attempts per IP per 15 minutes on `/api/auth/callback/credentials` and the login page,
-- and a general cap on `/api/*`.
-The app already limits per email (login) and per user (assistant).
+**Rate limiting (Phase 6C).** Shared limits are stored in PostgreSQL (`rate_limit_counters`), so they hold across instances:
+- failed sign-ins per client IP,
+- password-reset submissions per client IP,
+- API writes per session,
+- order, invoice and payment writes per session.
 
-**Health:** point the load balancer or uptime monitor at `GET /api/health`. It returns 200 `{status:"ok"}` or 503, with no details.
+These come on top of the per-email and per-MFA throttles and the assistant limits. Per-IP limits need `CLIENT_IP_HEADER`. Add general per-IP limits in the platform WAF. Details are in `docs/deployment.md` §10.
+
+**Health:** point the load balancer or uptime monitor at `GET /api/health`. It returns 200 `{status:"ok"}`, or 503 with a coarse reason (`database`, `migrations`, `shutting_down`) and no details.
+
+**Startup check (Phase 6C).** `scripts/preflight.mjs` (`npm run preflight`, run by the container) refuses to start on unsafe production settings, for example:
+- a remote database without TLS,
+- a short `AUTH_SECRET`,
+- a non-HTTPS `AUTH_URL`,
+- a missing MFA key,
+- demo-seed or test-provider variables.
 
 **Logging:**
 - Server logs contain only scope, error class, code and one redacted line; ship them to a log store with restricted access.
+- Operational events (sign-in failures, rate limits, financial rejections, 5xx, assistant usage and cost) are one JSON line each, with no emails, tokens or amounts (`docs/deployment.md` §9).
 - Don't enable verbose Prisma or query logging in production.
 
 **MFA key:**
