@@ -12,7 +12,9 @@ export async function loadPrincipal(userId: string, sessionId: string): Promise<
   const session = await getDb().authSession.findFirst({
     where: { id: sessionId, userId, revokedAt: null, expiresAt: { gt: new Date() } },
     select: {
-      user: { select: { id: true, email: true, role: true, isActive: true, employee: { select: { id: true, isActive: true, firstName: true, lastName: true } } } },
+      user: {
+        select: { id: true, email: true, role: true, isActive: true, mustChangePassword: true, employee: { select: { id: true, isActive: true, firstName: true, lastName: true } } },
+      },
     },
   });
   const user = session?.user;
@@ -23,5 +25,7 @@ export async function loadPrincipal(userId: string, sessionId: string): Promise<
     role: user.role,
     employeeId: user.employee?.id ?? null,
     name: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : user.email,
+    sessionId,
+    mustChangePassword: user.mustChangePassword,
   };
 }

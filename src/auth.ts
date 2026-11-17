@@ -1,10 +1,21 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import { verifyCredentials } from "@/server/auth/credentials";
+import { authenticate } from "@/server/auth/credentials";
 import { logError } from "@/server/log";
 import { createSession, revokeSession, SESSION_MAX_AGE_SECONDS } from "@/server/auth/sessions";
 
 export { SESSION_MAX_AGE_SECONDS };
+
+/** Password accepted; the account has MFA, so a TOTP or recovery code is needed. */
+export class MfaRequired extends CredentialsSignin {
+  code = "mfa_required";
+}
+/** Password accepted, but the MFA code is wrong, used or locked out. */
+export class MfaInvalid extends CredentialsSignin {
+  code = "mfa_invalid";
+}
+
+const header = (req: Request | undefined, name: string) => req?.headers.get(name) ?? null;
 
 /**
  * Auth.js (next-auth v5): email/password against the existing User table.
@@ -30,8 +41,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Credentials({
-      credentials: { email: { type: "email" }, password: { type: "password" } },
-      authorize: (raw) => verifyCredentials(raw),
+      credentials: { email: { type: "email" }, password: { type: "password" }, code: { type: "text" } },
+      async authorize(raw, request) {
+        const result = await authenticate(raw);
+        if (result.status === "mfa_required") throw new MfaRequired();
+        if (result.status === "mfa_invalid") throw new MfaInvalid();
+        if (result.status !== "ok") return null;
+        // Informational, for the user's session list (not used for access decisions).
+        const ip = (header(request, "x-forwarded-for")?.split(",")[0] ?? header(request, "x-real-ip") ?? "").trim().slice(0, 64) || null;
+        return { id: result.user.id, email: result.user.email, userAgent: header(request, "user-agent")?.slice(0, 200) ?? null, ipAddress: ip };
+      },
     }),
   ],
   callbacks: {
@@ -39,7 +58,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Only at sign-in: register a server-side session and bind the token to it.
       if (user?.id) {
         token.sub = user.id;
-        token.sid = await createSession(user.id);
+        const meta = user as { userAgent?: string | null; ipAddress?: string | null };
+        token.sid = await createSession(user.id, { userAgent: meta.userAgent ?? null, ipAddress: meta.ipAddress ?? null });
       }
       return token;
     },

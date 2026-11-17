@@ -1,3 +1,5 @@
+import { hash } from "bcryptjs";
+import { TOTP } from "otpauth";
 import { chromium, type Browser, type Page } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_PASSWORD } from "../support/env";
@@ -22,7 +24,7 @@ beforeAll(async () => {
 });
 afterAll(async () => browser?.close());
 
-async function signedIn(email: string): Promise<Page> {
+async function signedIn(email: string, password = DEMO_PASSWORD): Promise<Page> {
   const ctx = await browser!.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${email}: ${e.message}`));
@@ -34,7 +36,7 @@ async function signedIn(email: string): Promise<Page> {
   });
   await page.goto(base + "/login");
   await page.fill("#lg-email", email);
-  await page.fill("#lg-pw", DEMO_PASSWORD);
+  await page.fill("#lg-pw", password);
   await page.click("button[type=submit]");
   await page.waitForURL("**/dashboard");
   return page;
@@ -433,6 +435,87 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
     await page.locator(".seg-opt", { hasText: /^Customer$/ }).filter({ visible: true }).click();
     await expect.poll(() => rowWith(page, "Restorant Liqeni SHPK").count()).toBe(1);
     expect(await rowWith(page, "Market Alba SHPK").count()).toBe(0);
+    await page.context().close();
+  });
+
+  it("users: an administrator creates an account and the person sets their password from the link", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const email = `ui6b.${Date.now()}@salesflow.test`;
+    const page = await signedIn("admin@salesflow.test");
+    await page.goto(base + "/users");
+    expect(await visibleText(page, "Not in this design pass").count()).toBe(0); // placeholder replaced
+    await expect.poll(() => rowWith(page, "manager@salesflow.test").count()).toBe(1);
+    await page.getByRole("button", { name: "New user" }).click();
+    await page.locator("#nu-email").fill(email);
+    await page.locator("#nu-role").selectOption("SALES_MANAGER");
+    await page.getByRole("button", { name: "Create account" }).click();
+    const link = (await page.getByTestId("setup-link").textContent())!.trim();
+    expect(link).toMatch(/\/reset-password#token=/);
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect.poll(() => page.getByRole("dialog", { name: "User details" }).getByRole("heading", { name: email }).count()).toBe(1);
+
+    const visitor = await (await browser.newContext()).newPage();
+    await visitor.goto(link);
+    await expect.poll(() => visitor.url()).not.toContain("token="); // removed from the address bar
+    await visitor.locator("#rp-pw").fill("Copper-Window-Ninety-One");
+    await visitor.locator("#rp-confirm").fill("Copper-Window-Ninety-One");
+    await visitor.getByRole("button", { name: "Save password" }).click();
+    await expect.poll(() => visitor.getByText("Password saved").count()).toBe(1);
+    await visitor.context().close();
+    const user = await signedIn(email, "Copper-Window-Ninety-One");
+    expect(user.url()).toContain("/dashboard");
+    await user.context().close();
+    await page.context().close();
+  });
+
+  it("account: turns on two-step verification, then signs in with a code", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const email = `mfa6b.${Date.now()}@salesflow.test`;
+    const password = "Lighthouse-Basin-Forty-Two";
+    await db().user.create({ data: { email, role: "SALES_MANAGER", passwordHash: await hash(password, 10) } });
+    const page = await signedIn(email, password);
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("button", { name: "Account security" }).click();
+    await page.waitForURL("**/account");
+    await page.getByRole("button", { name: "Set up two-step verification" }).click();
+    await page.locator("#ra-pw").fill(password);
+    await page.getByRole("button", { name: "Continue" }).click();
+    const secret = (await page.getByTestId("mfa-secret").textContent())!.trim();
+    await page.locator("#ms-code").fill(TOTP.generate({ secret }));
+    await page.getByRole("button", { name: "Turn on" }).click();
+    const codes = (await page.getByTestId("recovery-codes").textContent())!.trim().split("\n");
+    expect(codes).toHaveLength(10);
+    await page.getByRole("button", { name: "I've saved them" }).click();
+    await expect.poll(() => visibleText(page, /Recovery codes left: 10/).count()).toBe(1);
+    await page.context().close();
+
+    const login = await (await browser.newContext()).newPage();
+    await login.goto(base + "/login");
+    await login.fill("#lg-email", email);
+    await login.fill("#lg-pw", password);
+    await login.click("button[type=submit]");
+    await expect.poll(() => login.getByRole("heading", { name: "Two-step verification" }).count()).toBe(1);
+    await login.locator("#lg-code").fill("000000");
+    await login.click("button[type=submit]");
+    await expect.poll(() => login.getByRole("alert").filter({ hasText: /isn't valid/ }).count()).toBe(1);
+    await login.locator("#lg-code").fill(TOTP.generate({ secret, timestamp: Date.now() + 30_000 }));
+    await login.click("button[type=submit]");
+    await login.waitForURL("**/dashboard");
+    await login.context().close();
+  });
+
+  it("account: an administrator-set password must be replaced before the application opens", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const email = `forced6b.${Date.now()}@salesflow.test`;
+    await db().user.create({ data: { email, role: "SALES_MANAGER", passwordHash: await hash("Temporary-Granite-Door", 10), mustChangePassword: true } });
+    const page = await signedIn(email, "Temporary-Granite-Door");
+    await expect.poll(() => page.getByRole("heading", { name: "Choose your own password" }).count()).toBe(1);
+    expect(await page.getByRole("navigation").count()).toBe(0); // no app shell
+    await page.locator("#pw-current").fill("Temporary-Granite-Door");
+    await page.locator("#pw-new").fill("Harbour-Lantern-Seventeen");
+    await page.locator("#pw-confirm").fill("Harbour-Lantern-Seventeen");
+    await page.getByRole("button", { name: "Save and continue" }).click();
+    await expect.poll(() => page.getByRole("heading", { name: "Dashboard" }).count(), { timeout: 10_000 }).toBe(1);
     await page.context().close();
   });
 

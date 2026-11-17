@@ -21,6 +21,6 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 120_000,
     // The assistant never calls a paid API in tests: the offline scripted provider, and no key.
-    env: { DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, ASSISTANT_PROVIDER: "scripted", ANTHROPIC_API_KEY: "" },
+    env: { DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, ASSISTANT_PROVIDER: "scripted", ANTHROPIC_API_KEY: "", MFA_ENCRYPTION_KEY: "a83nrf3ligg9ecKKiPLsz6uXPIZhrP/aDguIG5CMbVo=" },
   },
 });

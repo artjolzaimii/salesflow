@@ -17,7 +17,7 @@ Audit of the code as of Phase 5F, the fixes made in Phase 6A, and what productio
 | 9 | Low | Cross-site write protection relied on `Origin`, which is absent from some requests. | **Fixed:** `Sec-Fetch-Site: cross-site` is also refused (on top of SameSite=Lax cookies and the JSON-only rule). |
 | 10 | Low | No database statement timeout or explicit pool size; no health endpoint. | **Fixed:** `statement_timeout` 30 s, pool max 10 and a connect timeout (all configurable); `GET /api/health`. |
 | 11 | Medium (business control) | Any role that may create orders can enter a 0–100 % discount. A representative can confirm a 100 % discount order; the only control is the manager who issues the invoice. | **Open:** needs a business decision on a discount ceiling or approval step. |
-| 12 | Medium | No password reset or change flow, no MFA, and no user-administration screen. Admin users without an employee record can't be deactivated from the UI. | **Open:** Phase 6B. |
+| 12 | Medium | No password reset or change flow, no MFA, and no user-administration screen. Admin users without an employee record can't be deactivated from the UI. | **Fixed in Phase 6B:** user administration, password change and one-time reset links, optional TOTP MFA with recovery codes, session management, security audit log. |
 | 13 | Low | Per-email login lockout lets someone who knows an email lock that account for 15 minutes at a time. | **Accepted trade-off:** add a per-network rate limit at the edge (below). |
 | 14 | Low | No general API rate limit (only login and assistant). Authenticated users can run heavy reports repeatedly. | **Mitigated** by the statement timeout, pagination caps and the bounded pool; add edge rate limiting in production. |
 | 15 | Low | The CSP allows `'unsafe-inline'` scripts (needed by Next.js bootstrap scripts without nonces). | **Accepted:** React escapes all rendered text; the only `dangerouslySetInnerHTML` uses are static constants (theme script, icons). |
@@ -84,6 +84,10 @@ The app already limits per email (login) and per user (assistant).
 - Server logs contain only scope, error class, code and one redacted line; ship them to a log store with restricted access.
 - Don't enable verbose Prisma or query logging in production.
 
+**MFA key:**
+- Set `MFA_ENCRYPTION_KEY` (32 random bytes, base64) in the secret store. Production refuses to enable MFA without it.
+- Losing or changing the key makes enrolled MFA unusable; recover with an administrator MFA reset per user.
+
 **AI assistant:**
 - Set a spend limit on the Anthropic key in the Console in addition to `ASSISTANT_DAILY_USD_*`.
 - Keep `ASSISTANT_FALLBACKS=off` unless approved.
@@ -93,7 +97,7 @@ The app already limits per email (login) and per user (assistant).
 
 **Sessions:**
 - The `auth_sessions` table keeps revoked and expired rows for at most 7 days per user (cleaned at sign-in).
-- To end all sessions of one user, set `revoked_at` for their rows; this is a manual SQL step until the 6B admin screen exists.
+- Administrators end a user's sessions from User management; users end their own from Account security.
 
 ## Verification
 

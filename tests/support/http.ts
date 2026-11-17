@@ -4,7 +4,12 @@ export const base = inject("baseUrl");
 export const COOKIE = "authjs.session-token";
 
 /** Signs in through the real Auth.js credentials endpoint; returns the session cookie or null. */
-export async function signIn(email: string, password: string): Promise<string | null> {
+export async function signIn(email: string, password: string, code?: string): Promise<string | null> {
+  return (await signInResult(email, password, code)).cookie;
+}
+
+/** Sign-in with the redirect location, so tests can read Auth.js error codes (e.g. code=mfa_required). */
+export async function signInResult(email: string, password: string, code?: string): Promise<{ cookie: string | null; location: string }> {
   const csrfRes = await fetch(`${base}/api/auth/csrf`);
   const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
   const csrfCookie = csrfRes.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
@@ -12,10 +17,10 @@ export async function signIn(email: string, password: string): Promise<string | 
     method: "POST",
     redirect: "manual",
     headers: { "content-type": "application/x-www-form-urlencoded", cookie: csrfCookie },
-    body: new URLSearchParams({ email, password, csrfToken, callbackUrl: `${base}/dashboard` }),
+    body: new URLSearchParams({ email, password, csrfToken, callbackUrl: `${base}/dashboard`, ...(code ? { code } : {}) }),
   });
   const session = res.headers.getSetCookie().find((c) => c.startsWith(COOKIE + "="));
-  return session ? session.split(";")[0] : null;
+  return { cookie: session ? session.split(";")[0] : null, location: res.headers.get("location") ?? "" };
 }
 
 const send = (method: string, path: string, cookie?: string, body?: unknown) =>

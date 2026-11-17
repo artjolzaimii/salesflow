@@ -118,6 +118,17 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
               <div className="font-medium">{role.user}</div>
               <div className="text-[12px] text-neutral-700">{role.title}</div>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUserOpen(false);
+                go.to("/account");
+              }}
+              className="flex w-full cursor-pointer items-center gap-2 border-0 border-b border-divider bg-transparent px-[14px] py-[10px] text-[13px] hover:bg-accent-100"
+            >
+              <Icon name="lock" />
+              Account security
+            </button>
             <ThemeMenuItem className="flex w-full cursor-pointer items-center gap-2 border-0 border-b border-divider bg-transparent px-[14px] py-[10px] text-[13px] hover:bg-accent-100" />
             <button
               type="button"

@@ -5,3 +5,5 @@ export const TEST_DATABASE_URL = `postgresql://salesflow:salesflow_dev@localhost
 export const TEST_AUTH_SECRET = "test-only-auth-secret-0123456789abcdefghijklmnop";
 export const TEST_PORT = 3210;
 export const DEMO_PASSWORD = "ChangeMe-LocalDemo-2026!";
+/** Test-only MFA encryption key (32 bytes, base64); never used outside the test suite. */
+export const TEST_MFA_KEY = "a83nrf3ligg9ecKKiPLsz6uXPIZhrP/aDguIG5CMbVo=";

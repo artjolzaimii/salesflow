@@ -132,6 +132,14 @@ The order module uses the existing schema; no migration was needed.
 - **`auth_login_throttle`:** failed sign-ins per hashed email, shared by all instances.
 - **Pool:** the Prisma pg pool now sets `max`, a connect timeout and `statement_timeout` (env-configurable; see [security.md](security.md)).
 
+## Phase 6B (accounts, migration `20261121090000_user_admin_mfa_audit`)
+
+- **`users`:** gains `mfa_enabled`, `mfa_secret` and `mfa_pending_secret` (AES-256-GCM ciphertext, never plaintext), `mfa_enabled_at`, `mfa_last_counter` (replay protection), `password_changed_at` and `must_change_password`. A CHECK requires a secret when MFA is on.
+- **`auth_sessions`:** gains `user_agent` and `ip_address` (informational, for session lists).
+- **`mfa_recovery_codes`:** keyed hashes; `used_at` makes each code single-use.
+- **`password_reset_tokens`:** SHA-256 of one-time setup (72 h) and reset (24 h) links; `used_at`, `expires_at`, the issuing administrator.
+- **`security_audit_events`:** actor, target, event type, time and non-secret details. A trigger makes the table append-only.
+
 ## Remaining issues and decisions
 
 - **Still open:**

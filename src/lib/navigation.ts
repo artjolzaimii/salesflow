@@ -15,7 +15,7 @@ export type SectionKey =
   | "users"
   | "settings";
 
-export type PageKey = SectionKey | "newOrder" | "editOrder" | "customerNew" | "customerDetail";
+export type PageKey = SectionKey | "newOrder" | "editOrder" | "customerNew" | "customerDetail" | "account";
 
 export const SECTION_HREF: Record<SectionKey, string> = {
   dashboard: "/dashboard",
@@ -37,6 +37,7 @@ export const ROUTES = {
   newOrder: "/orders/new",
   editOrder: (id: string) => `/orders/${encodeURIComponent(id)}/edit`,
   customerNew: "/customers/new",
+  account: "/account",
   customer: (id: string) => `/customers/${encodeURIComponent(id)}`,
   login: "/login",
 };
@@ -85,11 +86,14 @@ export function pageFromPath(pathname: string): PageKey {
   if (first === "orders" && second && parts[2] === "edit") return "editOrder";
   if (first === "customers" && second === "new") return "customerNew";
   if (first === "customers" && second) return "customerDetail";
+  if (first === "account") return "account";
   if (first && first in SECTION_HREF) return first as SectionKey;
   return "dashboard";
 }
 
+/** Sidebar section of a page; the account page belongs to none (it falls back to the dashboard crumb). */
 export function sectionOf(page: PageKey): SectionKey {
+  if (page === "account") return "dashboard";
   if (page === "newOrder" || page === "editOrder") return "orders";
   if (page === "customerNew" || page === "customerDetail") return "customers";
   return page;
@@ -97,6 +101,7 @@ export function sectionOf(page: PageKey): SectionKey {
 
 /** Mirrors the prototype's page guard: unknown or forbidden pages fall back to the dashboard. */
 export function canViewPage(page: PageKey, role: RoleConfig): boolean {
+  if (page === "account") return true; // every signed-in user manages their own account
   if (!role.nav.includes(sectionOf(page))) return false;
   if (page === "newOrder" && !role.canCreateOrders) return false;
   if (page === "customerNew" && !role.canCreateCustomers) return false;
@@ -120,6 +125,7 @@ export function breadcrumbTrail(page: PageKey, customerName?: string): string[] 
     reports: ["Analytics", "Reports"],
     assistant: ["Intelligence", "AI Assistant"],
     users: ["Administration", "User management"],
+    account: ["Account", "Security"],
     settings: ["Administration", "Settings"],
   };
   return map[page];

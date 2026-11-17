@@ -6,6 +6,8 @@ import type { getOrder, listOrders, quoteOrder } from "@/server/services/orders"
 import type { getInvoice, listInvoices } from "@/server/services/invoices";
 import type { getPayment, listPayments } from "@/server/services/payments";
 import type { assistantStatus, createConversation, getConversation, listConversations, sendMessage } from "@/server/services/assistant";
+import type { getUser, listAuditEvents, listUsers, createUser, issuePasswordReset } from "@/server/services/users";
+import type { getAccount, listOwnSessions, startMfaSetup, enableMfa, regenerateRecoveryCodes } from "@/server/services/account";
 import type { collectionsReport, dashboardSummary, receivablesReport, salesBreakdown } from "@/server/services/reports";
 
 /**
@@ -62,3 +64,15 @@ export type CreatedConversationDto = Out<typeof createConversation>;
 export type ConversationDto = Out<typeof getConversation>;
 export type AssistantMessageDto = ConversationDto["messages"][number];
 export type SendMessageDto = Out<typeof sendMessage>;
+
+export type UserPage = Out<typeof listUsers>;
+export type UserRow = UserPage["items"][number];
+export type UserDetailDto = Out<typeof getUser>;
+export type UserCreatedDto = Out<typeof createUser>;
+export type PasswordResetIssuedDto = Out<typeof issuePasswordReset>;
+export type AuditPage = Out<typeof listAuditEvents>;
+export type AccountDto = Out<typeof getAccount>;
+export type OwnSessionsDto = Out<typeof listOwnSessions>;
+export type MfaSetupDto = Out<typeof startMfaSetup>;
+export type MfaEnabledDto = Out<typeof enableMfa>;
+export type RecoveryCodesDto = Out<typeof regenerateRecoveryCodes>;

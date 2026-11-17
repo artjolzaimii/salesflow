@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { cache } from "react";
 import { auth } from "@/auth";
 import type { Permission } from "@/lib/permissions";
-import { unauthenticated } from "@/server/errors";
+import { AppError, unauthenticated } from "@/server/errors";
 import { loadPrincipal } from "./load-principal";
 import { assertPermission, hasPermission, type Principal } from "./principal";
 
@@ -45,9 +45,17 @@ export async function requirePagePermission(permission: Permission): Promise<Pri
 
 /* ---------- route handlers and server actions (errors) ---------- */
 
-export async function requireUser(): Promise<Principal> {
+/**
+ * The signed-in user, or 401. While an administrator-set password is pending a
+ * change, only routes that pass `allowPendingPasswordChange` (the account and
+ * /api/me endpoints) are usable; everything else answers 403 PASSWORD_CHANGE_REQUIRED.
+ */
+export async function requireUser(opts: { allowPendingPasswordChange?: boolean } = {}): Promise<Principal> {
   const p = await getPrincipal();
   if (!p) throw unauthenticated();
+  if (p.mustChangePassword && !opts.allowPendingPasswordChange) {
+    throw new AppError(403, "PASSWORD_CHANGE_REQUIRED", "Change the password your administrator set before continuing.");
+  }
   return p;
 }
 

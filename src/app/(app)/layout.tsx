@@ -3,6 +3,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { requirePageUser } from "@/server/auth/session";
 import { toClientUser } from "@/server/auth/principal";
 import { SessionProvider } from "@/store/session";
+import { ForcedPasswordChange } from "@/components/account/forced-password-change";
 
 /**
  * Signed-in application frame: sidebar, top bar, global drawers and dialogs.
@@ -20,6 +21,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
 async function SignedIn({ children }: { children: ReactNode }) {
   const principal = await requirePageUser();
+  // An administrator-set password must be replaced before anything else (the APIs enforce it too).
+  if (principal.mustChangePassword) return <ForcedPasswordChange email={principal.email} />;
   return (
     <SessionProvider user={toClientUser(principal)}>
       <AppShell>{children}</AppShell>

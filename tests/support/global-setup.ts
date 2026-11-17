@@ -2,7 +2,7 @@ import { execSync, spawn, type ChildProcess } from "node:child_process";
 import { createWriteStream, existsSync } from "node:fs";
 import { Client } from "pg";
 import type { TestProject } from "vitest/node";
-import { ADMIN_URL, DEMO_PASSWORD, TEST_AUTH_SECRET, TEST_DATABASE_URL, TEST_DB_NAME, TEST_PORT } from "./env";
+import { ADMIN_URL, DEMO_PASSWORD, TEST_AUTH_SECRET, TEST_DATABASE_URL, TEST_DB_NAME, TEST_MFA_KEY, TEST_PORT } from "./env";
 
 /**
  * Builds a throwaway database from the version-controlled migrations plus the
@@ -29,7 +29,7 @@ export default async function setup(project: TestProject) {
   if (existsSync(".next/BUILD_ID")) {
     server = spawn("npx", ["next", "start", "-p", String(TEST_PORT)], {
       // Offline scripted assistant provider and no API key: the HTTP and browser suites never call a paid API.
-      env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, AUTH_TRUST_HOST: "true", NODE_ENV: "production", ASSISTANT_PROVIDER: "scripted", ANTHROPIC_API_KEY: "" },
+      env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, AUTH_TRUST_HOST: "true", NODE_ENV: "production", ASSISTANT_PROVIDER: "scripted", ANTHROPIC_API_KEY: "", MFA_ENCRYPTION_KEY: TEST_MFA_KEY },
       stdio: ["ignore", "pipe", "pipe"],
     });
     // Server output for diagnosing HTTP-suite failures (.next/ is git-ignored).

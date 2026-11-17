@@ -250,10 +250,10 @@ describe.skipIf(!base)("authentication over HTTP", () => {
       const html = await res.text();
       // The gate runs inside the streamed layout, so the redirect is delivered in the stream.
       expect(html).toContain("/dashboard");
-      expect(html).not.toContain("Administration screens");
+      expect(html).not.toContain("Login accounts, roles and account security");
       // Control: an admin gets the page content.
       const admin = (await signIn("admin@salesflow.test", DEMO_PASSWORD))!;
-      expect(await (await get("/users", admin)).text()).toContain("Administration screens");
+      expect(await (await get("/users", admin)).text()).toContain("Login accounts, roles and account security");
     });
   });
 });

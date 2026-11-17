@@ -43,3 +43,40 @@ describe("assistant safety defaults", () => {
     expect(c).toMatchObject({ dailyUsdPerUser: 5, dailyUsdTotal: 50, maxConcurrent: 10, requestsPerHour: 30 });
   });
 });
+
+describe("MFA secret encryption and password policy (Phase 6B)", () => {
+  it("encrypts with AES-256-GCM, detects tampering, and needs a dedicated key in production", async () => {
+    const { decryptSecret, encryptSecret, mfaKeyAvailable, hashRecoveryCode } = await import("@/server/auth/secrets");
+    const enc = encryptSecret("JBSWY3DPEHPK3PXP");
+    expect(enc).toMatch(/^v1:/);
+    expect(enc).not.toContain("JBSWY3DPEHPK3PXP");
+    expect(encryptSecret("JBSWY3DPEHPK3PXP")).not.toBe(enc); // random IV
+    expect(decryptSecret(enc)).toBe("JBSWY3DPEHPK3PXP");
+    const raw = Buffer.from(enc.slice(3), "base64");
+    raw[raw.length - 1] ^= 1;
+    expect(() => decryptSecret("v1:" + raw.toString("base64"))).toThrow();
+    expect(hashRecoveryCode("abcde-fghjk")).toBe(hashRecoveryCode("ABCDE FGHJK"));
+
+    const saved = { key: process.env.MFA_ENCRYPTION_KEY, env: process.env.NODE_ENV };
+    const env = process.env as Record<string, string | undefined>;
+    try {
+      delete env.MFA_ENCRYPTION_KEY;
+      env.NODE_ENV = "production";
+      expect(mfaKeyAvailable()).toBe(false);
+      env.MFA_ENCRYPTION_KEY = Buffer.alloc(16).toString("base64"); // wrong length
+      expect(mfaKeyAvailable()).toBe(false);
+    } finally {
+      env.MFA_ENCRYPTION_KEY = saved.key;
+      env.NODE_ENV = saved.env;
+    }
+  });
+
+  it("rejects short, common and personal passwords", async () => {
+    const { passwordProblem } = await import("@/lib/password-policy");
+    expect(passwordProblem("short")).toMatch(/12/);
+    expect(passwordProblem("password1234")).toMatch(/common/);
+    expect(passwordProblem("aaaaaaaaaaaaaa")).toMatch(/repeat/);
+    expect(passwordProblem("elira.kola-2026!", { email: "elira.kola@salesflow.test" })).toMatch(/email/);
+    expect(passwordProblem("Copper-Window-Ninety-One", { email: "x@y.z" })).toBeNull();
+  });
+});

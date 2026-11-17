@@ -42,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           onClick={() => actions.setMobileNav(false)}
         />
       ) : null}
-      <Sidebar section={sectionOf(page)} />
+      <Sidebar section={page === "account" ? null : sectionOf(page)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar page={allowed ? page : "dashboard"} customerName={customerName} />
         <main className="mx-auto flex w-full max-w-[1520px] flex-1 flex-col gap-6 p-4 nav:px-7 nav:pt-6 nav:pb-10">

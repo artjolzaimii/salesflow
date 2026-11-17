@@ -1,4 +1,4 @@
-# SalesFlow API (Phase 5A–5F)
+# SalesFlow API (Phase 5A–6B)
 
 Request path: browser → Route Handler (`src/app/api/**`) → service (`src/server/services/*`) → Prisma → PostgreSQL. React components never contain business rules; they call these routes through `src/services/client/` (fetch wrapper and a small query cache).
 
@@ -143,6 +143,37 @@ Permission `assistant.use` (all roles). Conversations belong to the signed-in us
 | `POST /api/assistant/conversations` | `{ title? }`; 201. |
 | `GET /api/assistant/conversations/:id` | Conversation with user and assistant messages in order; assistant messages carry `status`, `tools`, `records` (links), `unverifiedFigures`. |
 | `POST /api/assistant/conversations/:id/messages` | `{ content }` (strict, ≤ 2000 chars). Runs the bounded tool loop; 200 `{ userMessage, assistantMessage }`. 429 `ASSISTANT_RATE_LIMITED`, 409 `ASSISTANT_BUSY`, 503 `ASSISTANT_NOT_CONFIGURED` / `ASSISTANT_UNAVAILABLE`, 504 `ASSISTANT_TIMEOUT` (question and error note saved). |
+
+### User administration (Phase 6B)
+
+Permission `users.manage` (administrators only); everyone else gets 403. Responses never include password hashes, MFA secrets, recovery codes or token hashes.
+
+| Method & path | Notes |
+|---|---|
+| `GET /api/users` | `q` (email, employee name), `role`, `active`, `mfa`, paging, `sort=email\|role\|createdAt`. Rows include `canSignIn`, `lastSignInAt`, `activeSessions`. |
+| `POST /api/users` | `{ email, role, employeeId? }` (strict: no password). 201 `{ user, setupLink: { url, expiresAt } }`: a one-time link (72 h), shown once. |
+| `GET /api/users/:id` | Account, live sessions, pending link (type and expiry only), last 25 security events. |
+| `PATCH /api/users/:id` | `{ role?, isActive?, employeeId? }`. 403 `CANNOT_MODIFY_SELF` for your own role/status, 409 `LAST_ADMIN`, `EMPLOYEE_HAS_ACCOUNT`, `EMPLOYEE_INACTIVE`. Role change, deactivation and relinking revoke the user's sessions. |
+| `POST /api/users/:id/password-reset` | One-time reset link (24 h), shown once; earlier links stop working and the user's sessions end. |
+| `POST /api/users/:id/mfa/reset` | MFA off, recovery codes deleted, sessions revoked (lost authenticator). |
+| `POST /api/users/:id/sessions/revoke` | `{ sessionId? }`: one session or all. |
+| `GET /api/audit-events` | `userId`, `type`, paging. Append-only security log. |
+
+### Account security (any signed-in user, own account only)
+
+| Method & path | Notes |
+|---|---|
+| `GET /api/account` | Email, role, MFA status (`enabled`, `recoveryCodesLeft`, `available`), password change time. |
+| `POST /api/account/password` | `{ currentPassword, newPassword, code? }` (code when MFA is on). Policy: ≥ 12 chars, not common, not containing email or name, not the current password. Other sessions are revoked; the current one stays. |
+| `POST /api/account/mfa/setup` | `{ currentPassword }` → `{ secret, otpauthUri, qrCode }`, the only time the secret is returned. |
+| `POST /api/account/mfa/enable` | `{ code }` → `{ recoveryCodes }` (10, shown once). |
+| `POST /api/account/mfa/disable`, `POST /api/account/mfa/recovery-codes` | `{ currentPassword, code }` (TOTP or recovery code). |
+| `GET /api/account/sessions` · `DELETE /api/account/sessions/:id` · `POST /api/account/sessions/revoke-others` | Own sessions only (another user's id is 404). |
+| `POST /api/password-reset` | Public. `{ token, newPassword }` from a setup/reset link; 410 `RESET_LINK_INVALID` for unknown, used or expired links. |
+
+While an administrator-set password is pending (`mustChangePassword`), every other API answers 403 `PASSWORD_CHANGE_REQUIRED`.
+
+Sign-in with MFA uses the same Auth.js credentials endpoint with an extra `code` field. Without it, a correct password for an MFA account fails with `code=mfa_required`; a wrong code gives `code=mfa_invalid`.
 
 ### Phase 5A routes
 

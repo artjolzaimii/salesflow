@@ -8,6 +8,9 @@ import { PASSWORD_HASH_COST } from "@/server/auth/credentials";
 import { assertPermission, hasPermission, type Principal } from "@/server/auth/principal";
 import { getDb } from "@/server/db";
 import { D } from "@/server/domain/money";
+import { passwordProblem } from "@/lib/password-policy";
+import { audit } from "@/server/audit";
+import { revokeUserSessions } from "@/server/auth/sessions";
 import { conflict, forbidden, invalid, mapDatabaseError, notFound } from "@/server/errors";
 import { boolParam, listQuery, paged, skipTake } from "@/server/query";
 
@@ -121,15 +124,19 @@ export async function createEmployee(p: Principal, raw: unknown) {
   assertPermission(p, "employees.manage");
   const input = employeeCreateSchema.parse(raw);
   if (input.account && !hasPermission(p, "users.manage")) throw forbidden("Creating login accounts requires user administration rights.");
+  const weak = input.account ? passwordProblem(input.account.password, { email: input.account.email, names: [input.firstName, input.lastName] }) : null;
+  if (weak) throw invalid(weak, { "account.password": [weak] });
   const db = getDb();
   try {
     const created = await db.$transaction(async (tx) => {
       const user = input.account
         ? await tx.user.create({
-            data: { email: input.account.email, role: input.account.role, passwordHash: await hash(input.account.password, PASSWORD_HASH_COST) },
+            // The administrator chose this password, so the person must replace it at first sign-in.
+            data: { email: input.account.email, role: input.account.role, passwordHash: await hash(input.account.password, PASSWORD_HASH_COST), mustChangePassword: true },
             select: { id: true },
           })
         : null;
+      if (user) await audit(tx, { type: "USER_CREATED", actorUserId: p.userId, targetUserId: user.id, details: { role: input.account!.role, employeeLinked: true, initialPasswordSetByAdmin: true } });
       return tx.employee.create({
         data: { firstName: input.firstName, lastName: input.lastName, phone: input.phone, territory: input.territory, isActive: input.isActive, userId: user?.id },
         select: { id: true },
@@ -167,8 +174,19 @@ export async function updateEmployee(p: Principal, id: string, raw: unknown) {
   await db.$transaction(async (tx) => {
     if (reassignCustomersTo) await tx.customer.updateMany({ where: { assignedRepId: id }, data: { assignedRepId: reassignCustomersTo } });
     await tx.employee.update({ where: { id }, data });
-    // Deactivation ends every open session of the linked account at once.
-    if (deactivating && current.userId) await tx.authSession.updateMany({ where: { userId: current.userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    // Deactivating the employee also deactivates their login (reactivation is a separate,
+    // explicit step in User management) and ends every open session at once.
+    if (deactivating && current.userId) {
+      const account = await tx.user.findUniqueOrThrow({ where: { id: current.userId }, select: { role: true, isActive: true } });
+      if (account.role === "ADMIN" && account.isActive) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(${0x5f0003}::bigint)`;
+        const others = await tx.user.count({ where: { id: { not: current.userId }, role: "ADMIN", isActive: true, OR: [{ employee: null }, { employee: { isActive: true } }] } });
+        if (!others) throw conflict("LAST_ADMIN", "This employee's account is the last active administrator.");
+      }
+      if (account.isActive) await tx.user.update({ where: { id: current.userId }, data: { isActive: false } });
+      const n = await revokeUserSessions(current.userId, { tx });
+      await audit(tx, { type: "USER_DEACTIVATED", actorUserId: p.userId, targetUserId: current.userId, details: { via: "employee", sessionsRevoked: n } });
+    }
   });
   return getEmployee(p, id);
 }

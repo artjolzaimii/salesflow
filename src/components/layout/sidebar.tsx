@@ -16,7 +16,7 @@ import { useGo } from "./use-go";
 const label = "nav:group-data-[collapsed=true]/side:hidden";
 const centerWhenCollapsed = "nav:group-data-[collapsed=true]/side:justify-center";
 
-export function Sidebar({ section }: { section: SectionKey }) {
+export function Sidebar({ section }: { section: SectionKey | null }) {
   const role = useRole();
   const collapsed = usePreview((s) => s.sidebarCollapsed);
   const mobileOpen = usePreview((s) => s.mobileNavOpen);

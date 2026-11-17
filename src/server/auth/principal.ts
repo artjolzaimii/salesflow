@@ -10,6 +10,10 @@ export interface Principal {
   /** Employee record linked to the user; reps without one can see no records. */
   employeeId: string | null;
   name: string;
+  /** Server-side session (auth_sessions.id) this request belongs to. */
+  sessionId?: string;
+  /** An administrator set the password: it must be changed before anything else. */
+  mustChangePassword?: boolean;
 }
 
 export function toClientUser(p: Principal): ClientSessionUser {
