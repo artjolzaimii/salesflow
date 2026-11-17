@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { Prisma } from "@/generated/prisma/client";
 import { checkConfig } from "@/server/config-check";
+import { poolConfig } from "@/server/db";
 import { databaseAvailabilityError, mapDatabaseError } from "@/server/errors";
 import { checkHealth, type HealthDb } from "@/server/health";
 import { isFinancialWrite } from "@/server/http";
@@ -43,6 +44,30 @@ describe("production configuration check", () => {
     expect(r.warnings.join(" | ")).toMatch(/assistant is disabled.*per-IP|per-IP.*assistant is disabled|AUTH_TRUST_HOST/);
     expect(r.warnings).toHaveLength(4);
     expect(checkConfig({ ...GOOD, DATABASE_URL: "postgresql://postgres:x@localhost:5432/salesflow" }).warnings.join()).toMatch(/superuser/);
+  });
+});
+
+describe("Supabase / Vercel database settings", () => {
+  const SUPA = "postgresql://salesflow_app.abcdefghijklmnopqrst:x@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?sslmode=require";
+  const CA = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----";
+
+  it("requires the Supabase CA for verified TLS", () => {
+    expect(checkConfig({ ...GOOD, DATABASE_URL: SUPA }).errors.join()).toMatch(/DATABASE_SSL_CA/);
+    expect(checkConfig({ ...GOOD, DATABASE_URL: SUPA, DATABASE_SSL_CA: CA }).errors).toEqual([]);
+    expect(checkConfig({ ...GOOD, DATABASE_URL: SUPA, DATABASE_SSL_CA: "not a cert" }).errors.join()).toMatch(/PEM/);
+    const unverified = checkConfig({ ...GOOD, DATABASE_URL: SUPA + "&uselibpqcompat=true" });
+    expect(unverified.errors).toEqual([]);
+    expect(unverified.warnings.join()).toMatch(/isn't verified/);
+  });
+
+  it("builds a pool that verifies against the CA, with the URL's TLS settings removed", () => {
+    const cfg = poolConfig(SUPA + "&sslrootcert=/x.crt", { DATABASE_SSL_CA: CA.replace(/\n/g, "\\n"), DATABASE_POOL_MAX: "5" });
+    expect(cfg.connectionString).not.toMatch(/sslmode|sslrootcert/);
+    expect(cfg.connectionString).toContain("salesflow_app.abcdefghijklmnopqrst:x@aws-0-eu-central-1.pooler.supabase.com:6543/postgres");
+    expect(cfg).toMatchObject({ ssl: { ca: CA, rejectUnauthorized: true }, statement_timeout: 30_000 });
+    expect(poolConfig(SUPA, { DATABASE_STATEMENT_TIMEOUT_MS: "0" })).not.toHaveProperty("statement_timeout");
+    expect(poolConfig(SUPA, {})).toEqual(expect.objectContaining({ connectionString: SUPA }));
+    expect(() => poolConfig(SUPA, { DATABASE_SSL_CA: "garbage" })).toThrow(/PEM/);
   });
 });
 

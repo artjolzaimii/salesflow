@@ -1,6 +1,6 @@
 # SalesFlow deployment guide (Phase 6C)
 
-This guide covers how to run SalesFlow in production. Nothing here has been deployed. The guide contains no credentials: every `<…>` value comes from your secret store.
+This guide covers how to run SalesFlow in production. For the chosen Vercel + Supabase setup, follow **docs/deployment-vercel.md**. Nothing here has been deployed. The guide contains no credentials: every `<…>` value comes from your secret store.
 
 Related documents: `docs/security.md` covers the security controls, and `docs/database.md` covers the schema and its guards.
 
@@ -73,7 +73,8 @@ The preflight check (`scripts/preflight.mjs`, run by the container before `next 
 | `ASSISTANT_DAILY_USD_TOTAL` / `_PER_USER` | no | Default 50 / 5 USD per day |
 | `ASSISTANT_FALLBACKS` | no | Keep `off` unless explicitly approved |
 | `DATABASE_POOL_MAX` | no | Default 10 per instance (see §5) |
-| `DATABASE_STATEMENT_TIMEOUT_MS` | no | Default 30000 |
+| `DATABASE_STATEMENT_TIMEOUT_MS` | no | Default 30000; `0` leaves it to the database role |
+| `DATABASE_SSL_CA` | for private CAs | PEM CA certificate to verify the database against (required for Supabase) |
 | `RATE_LIMIT_SIGNIN_FAILURES_PER_IP` | no | Default 30 failed sign-ins per 15 min (successful sign-ins don't count) |
 | `RATE_LIMIT_PASSWORD_RESET_PER_IP` | no | Default 10 per hour |
 | `RATE_LIMIT_WRITES_PER_MINUTE` | no | Default 120 per session |

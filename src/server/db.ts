@@ -35,14 +35,34 @@ const envInt = (name: string, fallback: number, min: number, max: number) => {
  * Pool limits (docs/security.md): a bounded pool per instance, a connect
  * timeout so a stuck database fails fast, and a per-statement timeout so no
  * single query (for example a large report) can hold a connection indefinitely.
+ * DATABASE_STATEMENT_TIMEOUT_MS=0 leaves the timeout to the database role
+ * (ALTER ROLE … SET statement_timeout), for poolers that reject startup parameters.
  */
-function poolConfig(connectionString: string) {
+export function poolConfig(connectionString: string, env: Record<string, string | undefined> = process.env) {
+  const timeout = env.DATABASE_STATEMENT_TIMEOUT_MS === "0" ? undefined : envInt("DATABASE_STATEMENT_TIMEOUT_MS", 30_000, 1_000, 600_000);
   return {
-    connectionString,
+    ...tlsConfig(connectionString, env.DATABASE_SSL_CA),
     max: envInt("DATABASE_POOL_MAX", 10, 1, 200),
     connectionTimeoutMillis: envInt("DATABASE_CONNECT_TIMEOUT_MS", 10_000, 500, 120_000),
     idleTimeoutMillis: 30_000,
-    statement_timeout: envInt("DATABASE_STATEMENT_TIMEOUT_MS", 30_000, 1_000, 600_000),
+    ...(timeout ? { statement_timeout: timeout } : {}),
     application_name: "salesflow",
   };
+}
+
+/**
+ * Verified TLS against a database whose certificate comes from a private CA
+ * (Supabase signs its servers with its own root). DATABASE_SSL_CA holds that CA
+ * certificate (PEM). node-postgres lets TLS settings in the URL override the
+ * `ssl` option, so the URL's own TLS parameters are removed and the connection
+ * verifies the server certificate and hostname against this CA only.
+ * Without DATABASE_SSL_CA the URL is used unchanged.
+ */
+function tlsConfig(connectionString: string, caPem: string | undefined) {
+  const ca = caPem?.trim().replace(/\\n/g, "\n");
+  if (!ca) return { connectionString };
+  if (!ca.includes("-----BEGIN CERTIFICATE-----")) throw new Error("DATABASE_SSL_CA must be a PEM certificate.");
+  const url = new URL(connectionString);
+  for (const key of ["sslmode", "sslrootcert", "sslcert", "sslkey", "uselibpqcompat", "ssl"]) url.searchParams.delete(key);
+  return { connectionString: url.toString(), ssl: { ca, rejectUnauthorized: true } };
 }

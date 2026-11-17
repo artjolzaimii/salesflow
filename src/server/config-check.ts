@@ -37,6 +37,12 @@ export function checkConfig(env: Env): ConfigReport {
     if (!local && !["require", "verify-ca", "verify-full"].includes(ssl ?? "")) {
       errors.push(`DATABASE_URL points at ${db.hostname} without TLS: add sslmode=require (or verify-full).`);
     }
+    const ca = env.DATABASE_SSL_CA;
+    if (ca && !ca.includes("-----BEGIN CERTIFICATE-----")) errors.push("DATABASE_SSL_CA must be the database CA certificate in PEM format.");
+    if (db.hostname.endsWith(".supabase.com") || db.hostname.endsWith(".supabase.co")) {
+      if (!ca && db.searchParams.get("uselibpqcompat") === "true") warnings.push("Supabase connection is encrypted but the server certificate isn't verified: set DATABASE_SSL_CA.");
+      else if (!ca) errors.push("Supabase uses its own certificate authority: set DATABASE_SSL_CA to the project's CA certificate (docs/deployment-vercel.md).");
+    }
     if (db.username === "postgres") warnings.push("DATABASE_URL uses the postgres superuser; use a least-privilege application role (docs/deployment.md).");
     if (ssl === "disable" && !local) errors.push("DATABASE_URL disables TLS for a remote database.");
   }

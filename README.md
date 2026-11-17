@@ -32,7 +32,7 @@ npm run db:verify:guards
 npm run build && npm test
 ```
 
-Production deployment (container image, database roles, migrations, health, monitoring, backups, rollback, checklist): see **docs/deployment.md**.
+Production deployment (container image, database roles, migrations, health, monitoring, backups, rollback, checklist): see **docs/deployment.md**; the Vercel + Supabase path is **docs/deployment-vercel.md**.
 
 Sign in with a seeded **development** account: `admin@`, `manager@`, `rep.tirana@` or `rep.korce@salesflow.test`. The shared password is `SEED_DEMO_PASSWORD` from `.env`.
 
