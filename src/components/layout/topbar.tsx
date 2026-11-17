@@ -9,6 +9,10 @@ import { useRole, useScopedData } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { ThemeMenuItem, ThemeToggle } from "./theme-toggle";
+import { qs } from "@/services/client/http";
+import { useApiQuery } from "@/services/client/query";
+import type { CustomerPage } from "@/services/client/types";
+import { useDebounced } from "@/services/client/use-debounced";
 import { useGo } from "./use-go";
 
 const popover = "absolute z-[60] border border-divider bg-bg shadow-[var(--shadow-md)]";
@@ -130,31 +134,34 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
   );
 }
 
+/**
+ * Customers are searched in the database (scoped by the server); orders and
+ * invoices still come from preview data and are labelled as such.
+ */
 function GlobalSearch({ onOpen }: { onOpen: () => void }) {
-  const { customers, orders, invoices, customerById } = useScopedData();
+  const { orders, invoices, customerById } = useScopedData();
   const go = useGo();
   const [q, setQ] = useState("");
   const [focused, setFocused] = useState(false);
   const term = q.trim().toLowerCase();
+  const debounced = useDebounced(term);
+  const live = useApiQuery<CustomerPage>(debounced.length >= 2 ? "/api/customers" + qs({ q: debounced, pageSize: 4 }) : null);
 
   const results = useMemo(() => {
     if (term.length < 2) return [];
     const name = (id: string) => customerById[id].name;
     return [
-      ...customers
-        .filter((c) => c.name.toLowerCase().includes(term) || c.nipt.toLowerCase().includes(term))
-        .slice(0, 4)
-        .map((c) => ({ key: c.id, kind: "Customer", title: c.name, sub: `${c.city} · ${c.nipt}`, pick: () => go.customer(c.id) })),
+      ...(live.data?.items ?? []).map((c) => ({ key: c.id, kind: "Customer", title: c.businessName, sub: `${c.city} · ${c.nipt}`, pick: () => go.customer(c.id) })),
       ...orders
         .filter((o) => o.id.toLowerCase().includes(term) || name(o.customerId).toLowerCase().includes(term))
         .slice(0, 3)
-        .map((o) => ({ key: o.id, kind: "Order", title: o.id, sub: `${name(o.customerId)} · ${o.status}`, pick: () => go.order(o.id) })),
+        .map((o) => ({ key: o.id, kind: "Order · preview", title: o.id, sub: `${name(o.customerId)} · ${o.status}`, pick: () => go.order(o.id) })),
       ...invoices
         .filter((i) => i.id.toLowerCase().includes(term) || name(i.customerId).toLowerCase().includes(term))
         .slice(0, 3)
-        .map((i) => ({ key: i.id, kind: "Invoice", title: i.id, sub: `${name(i.customerId)} · ${i.status}`, pick: () => go.invoice(i.id) })),
+        .map((i) => ({ key: i.id, kind: "Invoice · preview", title: i.id, sub: `${name(i.customerId)} · ${i.status}`, pick: () => go.invoice(i.id) })),
     ];
-  }, [term, customers, orders, invoices, customerById, go]);
+  }, [term, live.data, orders, invoices, customerById, go]);
 
   const open = focused && term.length >= 2;
 
@@ -192,7 +199,7 @@ function GlobalSearch({ onOpen }: { onOpen: () => void }) {
               }}
               className={`flex items-baseline gap-[10px] px-3 py-[7px] ${popRow}`}
             >
-              <span className="w-14 flex-none text-[10.5px] tracking-[0.08em] text-neutral-700 uppercase">{r.kind}</span>
+              <span className="w-[72px] flex-none text-[10.5px] tracking-[0.08em] text-neutral-700 uppercase">{r.kind}</span>
               <span className="flex min-w-0 flex-col">
                 <span className="font-medium">{r.title}</span>
                 <span className="text-[12px] text-neutral-700">{r.sub}</span>

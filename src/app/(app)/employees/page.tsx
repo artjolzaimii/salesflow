@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/server/auth/session";
-import { EmployeesView } from "@/components/management/reference-tables";
+import { EmployeesView } from "@/components/management/employees-view";
 
 export const metadata: Metadata = { title: "Employees" };
 

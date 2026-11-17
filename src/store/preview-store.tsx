@@ -16,7 +16,7 @@ import { formatMoney } from "@/lib/money";
 import type { Conversation, Currency, DataState, SalesDataset } from "@/lib/types";
 import type { DraftLine } from "@/lib/validation";
 import * as ops from "@/services/preview/operations";
-import type { CreateCustomerInput, CreateOrderInput, CreatePaymentInput, SaveProductInput } from "@/services/api";
+import type { CreateOrderInput, CreatePaymentInput } from "@/services/api";
 
 export interface ConfirmRequest {
   title: string;
@@ -178,22 +178,9 @@ function createPreviewStore() {
       toast("Payment " + payment.id + " of " + formatMoney(payment.amount, payment.currency) + " recorded in preview.");
     },
 
-    /* ----- customers ----- */
-    createCustomer: (input: CreateCustomerInput) => {
-      const { data, customer } = ops.createCustomer(get().data, input);
-      set({ data });
-      toast(customer.name + " registered in preview.");
-      return customer;
-    },
-
-    /* ----- products ----- */
+    /* ----- products (dialog only; data lives in the database, see product-dialog.tsx) ----- */
     openProduct: (productId = "") => set({ productDialog: { productId } }),
     closeProduct: () => set({ productDialog: null }),
-    saveProduct: (input: SaveProductInput) => {
-      const { data, product, created } = ops.saveProduct(get().data, input);
-      set({ data, productDialog: null });
-      toast(product.name + (created ? " created" : " updated") + " in preview.");
-    },
 
     /* ----- assistant ----- */
     setAssistantInput: (assistantInput: string) => set({ assistantInput }),

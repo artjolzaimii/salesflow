@@ -21,7 +21,7 @@ export function PreviewControls() {
 
   return (
     <div className="mt-2 grid grid-cols-[auto_1fr] items-center gap-x-2 gap-y-[6px]">
-      <label htmlFor="pv-state">Data state</label>
+      <label htmlFor="pv-state" title="Applies to preview screens only">Data state</label>
       <select
         id="pv-state"
         className="input min-h-7 px-[6px] py-[2px] text-[12px]"

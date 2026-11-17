@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadPrincipal } from "@/server/auth/load-principal";
-import { listCustomers } from "@/server/services/customers";
+import { customerListQuery, listCustomers } from "@/server/services/customers";
 import { cancelInvoice } from "@/server/services/invoices";
 import { changeOrderStatus, getOrder } from "@/server/services/orders";
 import { recordPayment } from "@/server/services/payments";
@@ -32,12 +32,15 @@ describe("role restrictions (server-side)", () => {
 
 describe("sales representative ownership", () => {
   it("lists only assigned customers", async () => {
-    const tirana = (await listCustomers(await principalFor(REP_TIRANA))).map((c) => c.nipt).sort();
-    const korce = (await listCustomers(await principalFor(REP_KORCE))).map((c) => c.nipt).sort();
-    const manager = await listCustomers(await principalFor(MANAGER));
-    expect(tirana).toEqual(["L12345678A", "L23456789B", "L56789012E"]);
-    expect(korce).toEqual(["L34567890C", "L45678901D"]);
-    expect(manager.length).toBe(5);
+    const tirana = (await listCustomers(await principalFor(REP_TIRANA), customerListQuery.parse({ pageSize: "100" }))).items.map((c) => c.nipt).sort();
+    const korce = (await listCustomers(await principalFor(REP_KORCE), customerListQuery.parse({ pageSize: "100" }))).items.map((c) => c.nipt).sort();
+    const manager = (await listCustomers(await principalFor(MANAGER), customerListQuery.parse({ pageSize: "100" }))).items;
+    // Other test files add customers too; scope means "mine are there, theirs never are".
+    expect(tirana).toEqual(expect.arrayContaining(["L12345678A", "L23456789B", "L56789012E"]));
+    expect(tirana).not.toContain("L34567890C");
+    expect(korce).toEqual(expect.arrayContaining(["L34567890C", "L45678901D"]));
+    expect(korce.some((n) => ["L12345678A", "L23456789B", "L56789012E"].includes(n))).toBe(false);
+    expect(manager.length).toBeGreaterThanOrEqual(5);
   });
 
   it("hides another rep's order as not found (no existence leak)", async () => {
@@ -58,7 +61,7 @@ describe("sales representative ownership", () => {
 
   it("a representative without an employee record sees nothing", async () => {
     const rep = { ...(await principalFor(REP_TIRANA)), employeeId: null };
-    expect(await listCustomers(rep)).toEqual([]);
+    expect((await listCustomers(rep)).items).toEqual([]);
   });
 
   it("the session loader re-reads role and active flags from the database", async () => {

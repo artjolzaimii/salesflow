@@ -1,0 +1,206 @@
+import { chromium, type Browser, type Page } from "playwright-core";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { DEMO_PASSWORD } from "../support/env";
+import { freshNipt } from "../support/fixtures";
+import { base } from "../support/http";
+
+/**
+ * Browser tests for the database-backed screens, in the system Chrome against
+ * `next start` on the throwaway test database. Skipped without a production
+ * build or without Chrome.
+ */
+let browser: Browser | undefined;
+const errors: string[] = [];
+
+beforeAll(async () => {
+  if (!base) return;
+  try {
+    browser = await chromium.launch({ channel: "chrome", headless: true });
+  } catch {
+    browser = undefined;
+  }
+});
+afterAll(async () => browser?.close());
+
+async function signedIn(email: string): Promise<Page> {
+  const ctx = await browser!.newContext({ viewport: { width: 1440, height: 900 } });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errors.push(`${email}: ${e.message}`));
+  page.on("console", (m) => {
+    if (m.type() === "error" && !/status of (401|403|404|409|422)/.test(m.text())) errors.push(`${email}: ${m.text()}`);
+  });
+  await page.goto(base + "/login");
+  await page.fill("#lg-email", email);
+  await page.fill("#lg-pw", DEMO_PASSWORD);
+  await page.click("button[type=submit]");
+  await page.waitForURL("**/dashboard");
+  return page;
+}
+
+// Next.js keeps recently visited pages in the DOM (hidden) for instant back
+// navigation, so every lookup counts visible elements only.
+const rowWith = (page: Page, text: string) => page.locator("tbody tr", { hasText: text }).filter({ visible: true });
+const visibleText = (page: Page, text: string | RegExp) => page.getByText(text).filter({ visible: true });
+
+describe.skipIf(!base)("database-backed screens in the browser", () => {
+  it("customers: lists real records, searches and paginates, with no preview banner", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/customers");
+    await expect.poll(() => rowWith(page, "Market Alba SHPK").count()).toBe(1);
+    expect(await visibleText(page, "Euromarket Elbasani").count()).toBe(0); // fixture customers are gone
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0); // no preview notice on live screens
+    await page.getByLabel("Search customers", { exact: true }).fill("liqeni");
+    await expect.poll(() => page.locator("tbody tr").filter({ visible: true }).count()).toBe(1);
+    await expect.poll(() => rowWith(page, "Restorant Liqeni SHPK").count()).toBe(1);
+    await page.getByLabel("Search customers", { exact: true }).fill("");
+    await expect.poll(async () => (await visibleText(page, /^\d+–\d+ of \d+$/).first().textContent()) ?? "").toMatch(/^1–\d+ of \d+$/);
+    await page.context().close();
+  });
+
+  it("registers a customer, rejects a duplicate NIPT, and manages contacts", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    const nipt = freshNipt();
+    const name = "Browser Kafe " + nipt.slice(1, 6);
+    await page.goto(base + "/customers/new");
+    await page.fill("#cf-name", name);
+    await page.fill("#cf-nipt", nipt.toLowerCase());
+    await page.selectOption("#cf-type", "CAFE");
+    await page.selectOption("#cf-size", "SMALL");
+    await page.fill("#cf-contact", "Arta Kafe");
+    await page.fill("#cf-phone", "+355 69 555 0101");
+    await page.selectOption("#cf-city", "Tiranë");
+    await page.fill("#cf-street", "Rr. Kafeve 3");
+    await expect.poll(() => page.locator("#cf-rep option").count()).toBeGreaterThan(1);
+    await page.selectOption("#cf-rep", { label: "Erion Hoxha" });
+    await page.getByRole("button", { name: "Save customer" }).click();
+    await page.waitForURL(/\/customers\/[0-9a-f-]{36}$/);
+    await expect.poll(() => page.locator("h1.page-title").filter({ visible: true }).textContent()).toBe(name);
+    expect(await visibleText(page, `NIPT ${nipt}`).count()).toBe(1);
+
+    // Contacts tab: add a second contact through the dialog.
+    await page.getByRole("tab", { name: /Contacts/ }).click();
+    await page.getByRole("button", { name: "Add contact" }).click();
+    await page.fill("#ct-name", "Besa Second");
+    await page.fill("#ct-email", "besa@example.al");
+    await page.getByRole("button", { name: "Save contact" }).click();
+    await expect.poll(() => rowWith(page, "Besa Second").count()).toBe(1);
+
+    // Duplicate NIPT is reported on the field.
+    await page.goto(base + "/customers/new");
+    await page.fill("#cf-name", "Duplicate");
+    await page.fill("#cf-nipt", nipt);
+    await page.selectOption("#cf-type", "GROCERY");
+    await page.selectOption("#cf-size", "SMALL");
+    await page.fill("#cf-contact", "X");
+    await page.fill("#cf-phone", "+355 69 000 0000");
+    await page.selectOption("#cf-city", "Tiranë");
+    await page.fill("#cf-street", "Rr. 1");
+    await expect.poll(() => page.locator("#cf-rep option").count()).toBeGreaterThan(1);
+    await page.selectOption("#cf-rep", { label: "Erion Hoxha" });
+    await page.getByRole("button", { name: "Save customer" }).click();
+    await expect.poll(() => page.locator("#cf-nipt-error").textContent()).toContain("already exists");
+    await page.context().close();
+  });
+
+  it("edits a customer and shows its read-only order history", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/customers");
+    await rowWith(page, "Market Alba SHPK").click();
+    await page.waitForURL(/\/customers\/[0-9a-f-]{36}$/);
+    await page.getByRole("tab", { name: /Orders/ }).click();
+    await expect.poll(() => rowWith(page, "SO-2026-001").count()).toBe(1);
+    await page.getByRole("button", { name: "Edit customer" }).click();
+    await page.waitForURL(/\/edit$/);
+    await page.fill("#cf-notes", "Receiving dock opens at 07:00");
+    await page.getByRole("button", { name: "Save customer" }).click();
+    await page.waitForURL(/\/customers\/[0-9a-f-]{36}$/);
+    // The detail page keeps its UI state (Orders tab) across the edit round trip.
+    await page.getByRole("tab", { name: "Overview" }).filter({ visible: true }).click();
+    await expect.poll(() => visibleText(page, "Receiving dock opens at 07:00").count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("products: creates with 4-decimal precision and shows validation errors", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/products");
+    await expect.poll(() => rowWith(page, "DRK-001").count()).toBe(1);
+    await page.getByRole("button", { name: "New product" }).click();
+    const sku = "BRW-" + Date.now().toString(36).toUpperCase();
+    await page.fill("#pf-name", "Browser test juice");
+    await page.fill("#pf-sku", sku);
+    await expect.poll(() => page.locator("#pf-cat option").count()).toBeGreaterThan(1);
+    await page.selectOption("#pf-cat", { label: "Pije" });
+    await page.fill("#pf-unit", "cope");
+    await page.fill("#pf-price", "1.23456");
+    await page.getByRole("button", { name: "Save product" }).click();
+    await expect.poll(() => page.locator("#pf-price-error").textContent()).toContain("4 decimal places");
+    await page.fill("#pf-price", "12.3456");
+    await page.getByRole("button", { name: "Save product" }).click();
+    await page.getByLabel("Search products", { exact: true }).fill(sku);
+    await expect.poll(() => rowWith(page, sku).locator("td.num").textContent()).toBe("12.3456");
+    await page.context().close();
+  });
+
+  it("categories, employees and exchange rates work for a manager", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/categories");
+    await page.getByRole("button", { name: "New category" }).click();
+    const cat = "Browser cat " + Date.now();
+    await page.fill("#cat-name", cat);
+    await page.getByRole("button", { name: "Save category" }).click();
+    await expect.poll(() => rowWith(page, cat).count()).toBe(1);
+    await rowWith(page, cat).getByRole("button", { name: "Delete" }).click();
+    await page.getByRole("button", { name: "Delete category" }).click();
+    await expect.poll(() => rowWith(page, cat).count()).toBe(0);
+
+    await page.goto(base + "/employees");
+    await expect.poll(() => rowWith(page, "Erion Hoxha").count()).toBe(1);
+    await rowWith(page, "Erion Hoxha").click();
+    const drawer = page.getByRole("dialog").filter({ visible: true });
+    await expect.poll(() => drawer.getByText("Market Alba SHPK").count()).toBe(1);
+    expect(await drawer.getByRole("button", { name: "Deactivate" }).count()).toBe(0); // managers can't
+
+    await page.goto(base + "/settings");
+    await page.fill("#rate-val", "97.65");
+    await page.fill("#rate-date", "2026-11-17");
+    await page.getByRole("button", { name: "Save rate" }).click();
+    await expect.poll(() => page.getByText("1 EUR = 97.65 ALL", { exact: true }).filter({ visible: true }).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("a representative sees only their customers and no management actions", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.korce@salesflow.test");
+    await page.goto(base + "/customers");
+    await expect.poll(() => rowWith(page, "Hotel Korca SHPK").count()).toBe(1);
+    expect(await rowWith(page, "Market Alba SHPK").count()).toBe(0);
+    await page.goto(base + "/products");
+    await expect.poll(() => rowWith(page, "DRK-001").count()).toBe(1);
+    expect(await page.getByRole("button", { name: "New product" }).count()).toBe(0);
+    for (const path of ["/employees", "/categories", "/settings"]) {
+      await page.goto(base + path);
+      await page.waitForURL("**/dashboard");
+    }
+    await page.context().close();
+  });
+
+  it("preview modules stay clearly labelled", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("admin@salesflow.test");
+    for (const path of ["/dashboard", "/orders", "/invoices", "/payments", "/reports", "/assistant"]) {
+      await page.goto(base + path);
+      await expect.poll(() => page.getByRole("note").filter({ visible: true }).getByText("Preview data").count(), { message: path }).toBe(1);
+    }
+    await page.context().close();
+  });
+
+  it("produced no page or console errors", (ctx) => {
+    if (!browser) return ctx.skip();
+    expect(errors).toEqual([]);
+  });
+});

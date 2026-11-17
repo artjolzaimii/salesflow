@@ -32,6 +32,7 @@ export const PERMISSIONS = {
   "products.view": ALL,
   "products.manage": MANAGEMENT,
   "categories.manage": MANAGEMENT,
+  "exchangeRates.view": ALL,
   "exchangeRates.manage": MANAGEMENT,
   // Orders (reps: orders of their customers or that they sell)
   "orders.view": ALL,

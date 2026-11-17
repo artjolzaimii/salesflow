@@ -196,7 +196,7 @@ function DashboardReady() {
             </thead>
             <tbody>
               {d.topCustomers.map((c, i) => (
-                <tr key={c.id} className="clickable" onClick={() => go.customer(c.id)}>
+                <tr key={c.id}>
                   <td className="text-neutral-700">{i + 1}</td>
                   <td className="font-medium">{c.name}</td>
                   <td>{c.city}</td>

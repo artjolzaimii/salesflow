@@ -1,37 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { API_ENDPOINTS } from "@/services/api";
-import { formatMoney } from "@/lib/money";
-import { useActions, usePreview } from "@/store/preview-store";
-import { listState, useRole } from "@/store/hooks";
+import { useState } from "react";
+import { formatDecimal } from "@/lib/decimal-format";
+import { qs } from "@/services/client/http";
+import { useApiQuery } from "@/services/client/query";
+import type { CategoryList, ProductPage } from "@/services/client/types";
+import { useDebounced } from "@/services/client/use-debounced";
+import { useActions } from "@/store/preview-store";
+import { apiListState, useRole } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import { SelectOptions } from "@/components/ui/field";
 import { FilterRow, ListPanel } from "@/components/ui/list-panel";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 
+const PAGE_SIZE = 25;
 const BLANK = { q: "", category: "all", status: "all" };
 
+/** Product catalogue from GET /api/products (search, filters and paging on the server). */
 export function ProductsView() {
-  const products = usePreview((s) => s.data.products);
-  const dataState = usePreview((s) => s.dataState);
   const role = useRole();
   const actions = useActions();
   const [f, setF] = useState(BLANK);
-  const set = (k: keyof typeof BLANK, v: string) => setF((x) => ({ ...x, [k]: v }));
+  const [page, setPage] = useState(0);
+  const q = useDebounced(f.q.trim());
+  const set = (k: keyof typeof BLANK, v: string) => {
+    setF((x) => ({ ...x, [k]: v }));
+    setPage(0);
+  };
 
-  const categories = useMemo(() => [...new Set(products.map((p) => p.category))].sort(), [products]);
-  const filtered = useMemo(() => {
-    const q = f.q.trim().toLowerCase();
-    return products.filter(
-      (p) =>
-        (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)) &&
-        (f.category === "all" || p.category === f.category) &&
-        (f.status === "all" || (f.status === "active") === p.active),
-    );
-  }, [products, f]);
-  const state = listState(dataState, filtered, "products", API_ENDPOINTS.products);
+  const cats = useApiQuery<CategoryList>("/api/categories");
+  const url =
+    "/api/products" +
+    qs({ q, categoryId: f.category, active: f.status === "all" ? undefined : f.status === "active", page: page + 1, pageSize: PAGE_SIZE, sort: "name" });
+  const list = useApiQuery<ProductPage>(url);
+  const rows = list.data?.items ?? [];
+  const state = apiListState(list, rows, "products", !!q || f.category !== "all" || f.status !== "all");
 
   return (
     <>
@@ -48,13 +53,16 @@ export function ProductsView() {
       />
       <ListPanel
         state={state}
-        onClear={() => setF(BLANK)}
+        onClear={() => {
+          setF(BLANK);
+          setPage(0);
+        }}
         filters={
           <FilterRow>
             <input className="input w-[240px] max-w-full" type="search" aria-label="Search products" placeholder="Name or SKU" value={f.q} onChange={(e) => set("q", e.target.value)} />
             <select className="input w-auto" aria-label="Category" value={f.category} onChange={(e) => set("category", e.target.value)}>
               <option value="all">All categories</option>
-              <SelectOptions options={categories} />
+              <SelectOptions options={(cats.data?.items ?? []).map((c) => ({ value: c.id, label: c.name }))} />
             </select>
             <select className="input w-auto" aria-label="Status" value={f.status} onChange={(e) => set("status", e.target.value)}>
               <option value="all">Active and inactive</option>
@@ -83,12 +91,12 @@ export function ProductsView() {
                 <tr key={p.id}>
                   <td className="font-medium">{p.name}</td>
                   <td className="tabular-nums">{p.sku}</td>
-                  <td>{p.category}</td>
+                  <td>{p.category.name}</td>
                   <td>{p.unit}</td>
-                  <td className="num">{formatMoney(p.price)}</td>
+                  <td className="num">{formatDecimal(p.defaultNetAll)}</td>
                   <td className="text-right">{p.vatRate}%</td>
                   <td>
-                    <StatusBadge label={p.active ? "Active" : "Inactive"} />
+                    <StatusBadge label={p.isActive ? "Active" : "Inactive"} />
                   </td>
                   <td className="text-right">
                     {role.canEditProducts ? (
@@ -102,6 +110,7 @@ export function ProductsView() {
             </tbody>
           </table>
         </div>
+        <Pager page={page} pages={list.data?.pages ?? 1} total={list.data?.total ?? 0} size={PAGE_SIZE} onPage={setPage} />
       </ListPanel>
     </>
   );

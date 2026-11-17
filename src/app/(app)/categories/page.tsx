@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/server/auth/session";
-import { CategoriesView } from "@/components/management/reference-tables";
+import { CategoriesView } from "@/components/management/categories-view";
 
 export const metadata: Metadata = { title: "Categories" };
 

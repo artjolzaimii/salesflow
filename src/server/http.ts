@@ -22,7 +22,8 @@ export function route<C>(handler: Handler<C>): Handler<C> {
       if (req.method !== "GET" && req.method !== "HEAD") {
         const origin = req.headers.get("origin");
         if (origin && origin !== req.nextUrl.origin) throw new AppError(403, "CROSS_ORIGIN", "Cross-origin request refused.");
-        if (!req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+        const hasBody = req.method === "POST" || req.method === "PUT" || req.method === "PATCH";
+        if (hasBody && !req.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
           throw new AppError(415, "UNSUPPORTED_MEDIA_TYPE", "Send application/json.");
         }
       }

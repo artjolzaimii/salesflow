@@ -71,8 +71,8 @@ export function Sidebar({ section }: { section: SectionKey }) {
 
       <div className="flex flex-col gap-2 border-t border-divider p-[10px]">
         <div className={`px-1 text-[11px] leading-[1.4] text-neutral-700 ${label}`}>
-          <span className="tag tag-accent mb-1">Preview mode</span>
-          <div>Fictional fixtures. Not connected to the database.</div>
+          <span className="tag tag-accent mb-1">Partly preview</span>
+          <div>Customers, products, categories, employees and rates are live. Dashboard, orders, invoices, payments, reports and assistant use sample data.</div>
           <PreviewControls />
         </div>
         <button

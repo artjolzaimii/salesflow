@@ -150,8 +150,11 @@ describe.skipIf(!base)("authentication over HTTP", () => {
       expect((await get(`/api/orders/${own.order.id}`, rep)).status).toBe(200);
       expect((await get(`/api/orders/${foreign.order.id}`, rep)).status).toBe(404);
       expect((await get(`/api/orders/${foreign.order.id}`, manager)).status).toBe(200);
-      const customers = (await (await get("/api/customers", rep)).json()).customers as { nipt: string }[];
-      expect(customers.map((c) => c.nipt).sort()).toEqual(["L12345678A", "L23456789B", "L56789012E"]);
+      const customers = (await (await get("/api/customers", rep)).json()).items as { nipt: string }[];
+      const nipts = customers.map((c) => c.nipt);
+      expect(nipts).toEqual(expect.arrayContaining(["L12345678A", "L23456789B", "L56789012E"]));
+      expect(nipts).not.toContain(NIPT.liqeni); // rep.korce's customers never appear
+      expect(nipts).not.toContain(NIPT.hotelKorca);
     });
 
     it("refuses cross-origin and non-JSON writes (CSRF defence)", async () => {

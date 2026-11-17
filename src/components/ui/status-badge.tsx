@@ -1,6 +1,6 @@
 import type { OrderStatus, PaymentStatus } from "@/lib/types";
 
-export type BadgeLabel = OrderStatus | PaymentStatus | "Invoiced" | "Active" | "Inactive";
+export type BadgeLabel = OrderStatus | PaymentStatus | "Invoiced" | "Active" | "Inactive" | "Blocked";
 
 const TONES: Record<BadgeLabel, { bg: string; fg: string }> = {
   Draft: { bg: "var(--color-neutral-200)", fg: "var(--color-neutral-800)" },
@@ -16,6 +16,7 @@ const TONES: Record<BadgeLabel, { bg: string; fg: string }> = {
   Overdue: { bg: "var(--color-danger-100)", fg: "var(--color-danger-800)" },
   Active: { bg: "var(--color-success-100)", fg: "var(--color-success-800)" },
   Inactive: { bg: "var(--color-neutral-200)", fg: "var(--color-neutral-700)" },
+  Blocked: { bg: "var(--color-danger-100)", fg: "var(--color-danger-800)" },
 };
 
 /** Foreground tone for a status, reused by charts and legends. */

@@ -3,14 +3,11 @@
  * these checks only give immediate feedback.
  */
 import { formatMoney, inputToCents } from "./money";
-import type { Customer, InvoiceView, Product } from "./types";
+import type { InvoiceView } from "./types";
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NIPT = /^[A-Z]\d{8}[A-Z]$/;
-const PHONE = /^\+?[0-9 ]{8,16}$/;
-const POSTAL = /^\d{4}$/;
 
 /* ---------- login ---------- */
 
@@ -23,88 +20,6 @@ export function validateLogin(f: LoginForm): FieldErrors<keyof LoginForm> {
   const e: FieldErrors<keyof LoginForm> = {};
   if (!EMAIL.test(f.email.trim())) e.email = "Enter your work email.";
   if (f.password.length < 8) e.password = "Password must be at least 8 characters.";
-  return e;
-}
-
-/* ---------- customer registration ---------- */
-
-export interface CustomerForm {
-  name: string;
-  nipt: string;
-  type: string;
-  size: string;
-  status: "active" | "inactive";
-  contact: string;
-  position: string;
-  phone: string;
-  email: string;
-  city: string;
-  municipality: string;
-  street: string;
-  postal: string;
-  addressType: string;
-  repId: string;
-  notes: string;
-}
-
-export const BLANK_CUSTOMER_FORM: CustomerForm = {
-  name: "",
-  nipt: "",
-  type: "",
-  size: "",
-  status: "active",
-  contact: "",
-  position: "",
-  phone: "",
-  email: "",
-  city: "",
-  municipality: "",
-  street: "",
-  postal: "",
-  addressType: "Delivery",
-  repId: "",
-  notes: "",
-};
-
-export function validateCustomer(f: CustomerForm, existing: Customer[]): FieldErrors<keyof CustomerForm> {
-  const e: FieldErrors<keyof CustomerForm> = {};
-  const nipt = f.nipt.trim().toUpperCase();
-  if (!f.name.trim()) e.name = "Business name is required.";
-  if (!NIPT.test(nipt)) e.nipt = "NIPT is one letter, eight digits, one letter (e.g. L12345678A).";
-  else if (existing.some((c) => c.nipt === nipt)) e.nipt = "A customer with this NIPT already exists.";
-  if (!f.type) e.type = "Select a business type.";
-  if (!f.size) e.size = "Select a business size.";
-  if (!f.contact.trim()) e.contact = "Contact name is required.";
-  if (!PHONE.test(f.phone.trim())) e.phone = "Use digits only, e.g. +355 69 123 4567.";
-  if (f.email && !EMAIL.test(f.email.trim())) e.email = "Enter a valid email address.";
-  if (!f.city) e.city = "Select a city.";
-  if (!f.street.trim()) e.street = "Street address is required.";
-  if (f.postal && !POSTAL.test(f.postal.trim())) e.postal = "Albanian postal codes have four digits.";
-  if (!f.repId) e.repId = "Assign a sales representative.";
-  return e;
-}
-
-/* ---------- product ---------- */
-
-export interface ProductForm {
-  id: string;
-  name: string;
-  sku: string;
-  category: string;
-  unit: string;
-  price: string;
-  vatRate: string;
-  status: "active" | "inactive";
-}
-
-export function validateProduct(f: ProductForm, existing: Product[]): FieldErrors<"name" | "sku" | "category" | "unit" | "price"> {
-  const e: FieldErrors<"name" | "sku" | "category" | "unit" | "price"> = {};
-  if (!f.name.trim()) e.name = "Product name is required.";
-  if (!f.sku.trim()) e.sku = "SKU is required.";
-  else if (existing.some((p) => p.sku === f.sku.trim().toUpperCase() && p.id !== f.id)) e.sku = "SKU already in use.";
-  if (!f.category) e.category = "Select a category.";
-  if (!f.unit.trim()) e.unit = "Unit is required.";
-  if (!(parseFloat(f.price) > 0)) e.price = "Enter a net price above zero.";
   return e;
 }
 

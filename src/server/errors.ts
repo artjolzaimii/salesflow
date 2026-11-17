@@ -70,7 +70,24 @@ const GUARD_ERRORS: Record<string, [number, string]> = {
   "Cannot cancel an order with an issued invoice": [409, "ORDER_HAS_ISSUED_INVOICE"],
 };
 
+/** Unique indexes whose violation means "this record already exists". */
+const DUPLICATES: Record<string, [string, string]> = {
+  customers_nipt_key: ["DUPLICATE_NIPT", "A customer with this NIPT already exists."],
+  products_sku_key: ["DUPLICATE_SKU", "A product with this SKU already exists."],
+  categories_name_key: ["DUPLICATE_CATEGORY", "A category with this name already exists."],
+  users_email_key: ["DUPLICATE_EMAIL", "A user with this email already exists."],
+  exchange_rates_currency_code_effective_at_key: ["DUPLICATE_RATE", "A rate for this currency and effective time already exists."],
+  employees_user_id_key: ["DUPLICATE_EMPLOYEE_USER", "This user already has an employee record."],
+};
+
 export function mapDatabaseError(e: unknown): unknown {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+    const hit = DUPLICATES[pgCause(e)?.constraint?.index ?? ""];
+    if (hit) return conflict(hit[0], hit[1]);
+  }
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
+    return conflict("IN_USE", "This record is referenced by other records and cannot be removed.");
+  }
   const cause = pgCause(e);
   if (cause?.originalCode !== "P0001" || !cause.originalMessage) return e;
   const msg = cause.originalMessage;

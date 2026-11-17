@@ -22,6 +22,11 @@ export interface RoleConfig {
   canFulfilOrders: boolean;
   canCancelOrders: boolean;
   canOverridePrices: boolean;
+  canAssignCustomers: boolean;
+  canManageCategories: boolean;
+  canManageEmployees: boolean;
+  canCreateLogins: boolean;
+  canManageRates: boolean;
   /** Reps only see their assigned customers and everything derived from them. */
   scopedToOwnCustomers: boolean;
 }
@@ -39,7 +44,8 @@ export const SECTION_PERMISSION: Record<SectionKey, Permission> = {
   reports: "reports.view",
   assistant: "assistant.use",
   users: "users.manage",
-  settings: "settings.manage",
+  // Settings hosts exchange-rate management (managers and admins).
+  settings: "exchangeRates.manage",
 };
 
 const SECTION_ORDER = Object.keys(SECTION_PERMISSION) as SectionKey[];
@@ -60,6 +66,11 @@ export function roleConfig(user: Pick<ClientSessionUser, "name" | "title" | "ini
     canFulfilOrders: can(role, "orders.fulfil"),
     canCancelOrders: can(role, "orders.cancel"),
     canOverridePrices: can(role, "prices.override"),
+    canAssignCustomers: can(role, "customers.assign"),
+    canManageCategories: can(role, "categories.manage"),
+    canManageEmployees: can(role, "employees.manage"),
+    canCreateLogins: can(role, "users.manage"),
+    canManageRates: can(role, "exchangeRates.manage"),
     scopedToOwnCustomers: isScopedRole(role),
   };
 }

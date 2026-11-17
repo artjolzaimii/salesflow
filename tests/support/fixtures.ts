@@ -108,15 +108,33 @@ export const NIPT = {
   hotelKorca: "L45678901D", // rep.korce
 };
 
-/** The AppError code a promise rejects with. */
+/** The AppError code a promise rejects with (Zod failures count as VALIDATION_FAILED, as over HTTP). */
 export async function errorCode(p: Promise<unknown>): Promise<string> {
   try {
     await p;
   } catch (e) {
+    if ((e as Error)?.name === "ZodError") return "VALIDATION_FAILED";
     return (e as { code?: string }).code ?? String(e);
   }
   return "RESOLVED";
 }
+
+/** Field paths a Zod validation failure reported. */
+export async function invalidFields(p: Promise<unknown>): Promise<string[]> {
+  try {
+    await p;
+  } catch (e) {
+    const issues = (e as { issues?: { path: (string | number)[] }[] }).issues;
+    if (issues) return issues.map((i) => i.path.join("."));
+    throw e;
+  }
+  return [];
+}
+
+let uniq = 0;
+/** A valid, unused NIPT for this test run. */
+export const freshDigits = () => String(((Date.now() % 1e6) * 100 + (++uniq % 100)) % 1e8).padStart(8, "0");
+export const freshNipt = () => `T${freshDigits()}Z`;
 
 /** The PostgreSQL message behind a rejected Prisma call (guard triggers, CHECKs). */
 export async function dbError(p: Promise<unknown>): Promise<string> {

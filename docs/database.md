@@ -95,11 +95,14 @@ Mapping table updates:
 - **Order status:** the UI shows operational statuses (Draft, Confirmed, Processing, Delivered, Cancelled) plus a derived "Invoiced" badge.
 - **Order items:** these now render from line snapshots.
 
+## Phase 5B changes (migration `20261117120000_customer_notes_employee_territory`)
+
+There are two nullable, additive columns that the designed screens already showed: `customers.notes` (text) and `employees.territory` (varchar 150). No other schema change was needed for the customer, employee, product, category and exchange-rate modules ([api.md](api.md)).
+
 ## Remaining issues and decisions
 
 - **Still open:**
-  - Display codes for customers, employees and payments.
-  - Employee territory and customer notes columns.
+  - Display codes for customers, employees and payments. Screens now show NIPT, name and SKU instead.
   - A "Blocked" customer state in the UI.
   - Payment terms (business size is optional in the database).
   - The `deliverySnapshot` shape.

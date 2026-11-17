@@ -5,10 +5,7 @@ import { SkeletonRows } from "@/components/ui/states";
 
 export const metadata: Metadata = { title: "Customer" };
 
-/**
- * Customer IDs are request-time params (new customers can be registered in
- * preview), so the param is resolved inside Suspense per Cache Components.
- */
+/** Customer ids are request-time params, resolved inside Suspense per Cache Components. Data: GET /api/customers/:id. */
 export default function CustomerPage({ params }: PageProps<"/customers/[id]">) {
   return (
     <Suspense fallback={<SkeletonRows />}>

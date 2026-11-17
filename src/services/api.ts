@@ -10,21 +10,14 @@
  * Every endpoint is an assumption from design-reference/IMPLEMENTATION.md and
  * must be confirmed against the approved schema.
  */
-import type {
-  Currency,
-  Customer,
-  Employee,
-  Invoice,
-  Order,
-  Payment,
-  PaymentMethod,
-  Product,
-  Totals,
-} from "@/lib/types";
+import type { Currency, Invoice, Order, Payment, PaymentMethod, Totals } from "@/lib/types";
 import type { ClientSessionUser } from "@/lib/session-user";
 
 export const API_ENDPOINTS = {
-  // Implemented (Phase 5A): Auth.js sign-in/out, current user, business-rule endpoints.
+  // Live (Phase 5A/5B). Customers also: PATCH /api/customers/:id, contacts and addresses sub-resources;
+  // employees: GET/POST /api/employees, GET/PATCH /api/employees/:id, POST /api/employees/:id/reassign;
+  // catalogue: GET/PATCH /api/products/:id, GET/POST /api/categories, PATCH/DELETE /api/categories/:id;
+  // exchange rates: GET/POST /api/exchange-rates. See docs/api.md.
   login: "POST /api/auth/callback/credentials (Auth.js; the app uses a server action)",
   session: "GET /api/me",
   orderDetail: "GET /api/orders/:id",
@@ -74,8 +67,6 @@ export interface CreatePaymentInput {
   reference: string;
 }
 
-export type CreateCustomerInput = Omit<Customer, "id">;
-export type SaveProductInput = Omit<Product, "id"> & { id?: string };
 
 export interface SalesReportQuery {
   from: string;
@@ -84,14 +75,13 @@ export interface SalesReportQuery {
   currency: Currency | "ALL_EQ";
 }
 
-/** Async contract a production implementation fulfils. Totals always come back from the server. */
+/**
+ * Contract for the modules still in preview. Customers, employees, products,
+ * categories and exchange rates are live (see API_ENDPOINTS above and
+ * src/services/client/); their screens call those routes directly.
+ */
 export interface SalesFlowApi {
   getSession(): Promise<Session>;
-  listEmployees(): Promise<Employee[]>;
-  listCustomers(): Promise<Customer[]>;
-  createCustomer(input: CreateCustomerInput): Promise<Customer>;
-  listProducts(): Promise<Product[]>;
-  saveProduct(input: SaveProductInput): Promise<Product>;
   listOrders(): Promise<Order[]>;
   createOrder(input: CreateOrderInput): Promise<Order & Totals>;
   confirmOrder(id: string): Promise<Order>;

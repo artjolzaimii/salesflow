@@ -49,7 +49,8 @@ Three roles only: `ADMIN`, `SALES_MANAGER`, `SALES_REPRESENTATIVE`. There is no 
 | `customers.view`, `customers.create`, `customers.update` | ✓ | ✓ | ✓ | Reps: assigned customers only |
 | `customers.assign` | ✓ | ✓ | | Change the assigned rep |
 | `products.view` | ✓ | ✓ | ✓ | |
-| `products.manage`, `categories.manage`, `exchangeRates.manage` | ✓ | ✓ | | |
+| `products.manage`, `categories.manage`, `exchangeRates.manage` | ✓ | ✓ | | Settings (exchange rates) is visible to managers too |
+| `exchangeRates.view` | ✓ | ✓ | ✓ | |
 | `orders.view`, `orders.create`, `orders.update` | ✓ | ✓ | ✓ | Reps: own scope |
 | `orders.fulfil` (→ Processing, Delivered) | ✓ | ✓ | ✓ | Reps: own scope |
 | `orders.cancel` | ✓ | ✓ | | |
@@ -83,7 +84,7 @@ All routes return JSON with `Cache-Control: no-store` and error bodies of the fo
 | `POST /api/invoices/:id/replacement` | `{ issueDate, dueDate }` replacement for a cancelled invoice |
 | `POST /api/payments` | `{ invoiceId, amount: "12.34", paymentDate, method, reference?, idempotencyKey }`; 201 new, 200 replay |
 
-The full customer, product, order, invoice and payment modules come later.
+Phase 5B added the customer, employee, product, category and exchange-rate modules: see [api.md](api.md). Order creation, invoice issuance and the payment UI come later.
 
 ## Business rules
 

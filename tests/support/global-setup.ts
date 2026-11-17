@@ -1,5 +1,5 @@
 import { execSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { createWriteStream, existsSync } from "node:fs";
 import { Client } from "pg";
 import type { TestProject } from "vitest/node";
 import { ADMIN_URL, DEMO_PASSWORD, TEST_AUTH_SECRET, TEST_DATABASE_URL, TEST_DB_NAME, TEST_PORT } from "./env";
@@ -29,8 +29,12 @@ export default async function setup(project: TestProject) {
   if (existsSync(".next/BUILD_ID")) {
     server = spawn("npx", ["next", "start", "-p", String(TEST_PORT)], {
       env: { ...process.env, DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, AUTH_TRUST_HOST: "true", NODE_ENV: "production" },
-      stdio: "pipe",
+      stdio: ["ignore", "pipe", "pipe"],
     });
+    // Server output for diagnosing HTTP-suite failures (.next/ is git-ignored).
+    const log = createWriteStream(".next/test-server.log");
+    server.stdout?.pipe(log);
+    server.stderr?.pipe(log);
     baseUrl = `http://localhost:${TEST_PORT}`;
     for (let i = 0; i < 100; i++) {
       try {

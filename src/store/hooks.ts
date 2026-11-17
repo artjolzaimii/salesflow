@@ -67,6 +67,8 @@ export interface ListState<T> {
   showClear: boolean;
   errorBody: string;
   endpoint: string;
+  /** Live data: refetch. Preview lists fall back to a toast. */
+  retry?: () => void;
 }
 
 export function listState<T>(dataState: DataState, rows: T[], noun: string, endpoint: string): ListState<T> {
@@ -83,5 +85,33 @@ export function listState<T>(dataState: DataState, rows: T[], noun: string, endp
     showClear: !isEmpty,
     errorBody: `Could not load ${noun}. ${endpoint} returned 503 Service Unavailable.`,
     endpoint,
+  };
+}
+
+/**
+ * List state for screens backed by the real API: loading until the first
+ * response, the API's error message with a working Retry, and an empty state
+ * that distinguishes "nothing yet" from "no matches for these filters".
+ */
+export function apiListState<T>(
+  q: { loading: boolean; error?: { message: string }; refetch: () => void },
+  rows: T[],
+  noun: string,
+  filtered: boolean,
+): ListState<T> {
+  const error = !!q.error && !q.loading;
+  const ready = !q.loading && !error;
+  return {
+    rows,
+    loading: q.loading,
+    error,
+    show: ready && rows.length > 0,
+    empty: ready && rows.length === 0,
+    emptyTitle: filtered ? `No ${noun} match these filters` : `No ${noun} yet`,
+    emptyBody: filtered ? "Adjust or clear the filters to widen the results." : `New ${noun} appear here once they are added.`,
+    showClear: filtered,
+    errorBody: `Could not load ${noun}. ${q.error?.message ?? ""}`.trim(),
+    endpoint: "",
+    retry: q.refetch,
   };
 }

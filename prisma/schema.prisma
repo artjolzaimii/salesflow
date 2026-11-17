@@ -93,6 +93,8 @@ model Employee {
   firstName         String     @map("first_name") @db.VarChar(100)
   lastName          String     @map("last_name") @db.VarChar(100)
   phone             String?    @db.VarChar(30)
+  /// Sales territory shown on the Employees screen, e.g. "Tiranë · Fier".
+  territory         String?    @db.VarChar(150)
   isActive          Boolean    @default(true) @map("is_active")
   assignedCustomers Customer[]
   orders            Order[]
@@ -113,6 +115,8 @@ model Customer {
   city          String            @db.VarChar(100)
   municipality  String?           @db.VarChar(100)
   status        CustomerStatus    @default(ACTIVE)
+  /// Free-text operational notes (delivery windows, receiving contact).
+  notes         String?           @db.Text
   assignedRepId String?           @map("assigned_rep_id") @db.Uuid
   assignedRep   Employee?         @relation(fields: [assignedRepId], references: [id], onDelete: Restrict)
   contacts      CustomerContact[]

@@ -40,7 +40,9 @@ describe("permission matrix", () => {
   it("derives UI navigation from the matrix", () => {
     const nav = (role: "ADMIN" | "SALES_MANAGER" | "SALES_REPRESENTATIVE") => roleConfig(makeClientUser({ name: "A B", email: "a@b.c", role })).nav;
     expect(nav("SALES_REPRESENTATIVE")).toEqual(["dashboard", "orders", "invoices", "payments", "customers", "products", "reports", "assistant"]);
-    expect(nav("SALES_MANAGER")).toEqual(["dashboard", "orders", "invoices", "payments", "customers", "products", "categories", "employees", "reports", "assistant"]);
+    // Managers reach Settings for exchange rates (Phase 5B); users stays admin-only.
+    expect(nav("SALES_MANAGER")).toEqual(["dashboard", "orders", "invoices", "payments", "customers", "products", "categories", "employees", "reports", "assistant", "settings"]);
+    expect(nav("SALES_MANAGER")).not.toContain("users");
     expect(nav("ADMIN")).toContain("users");
     expect(roleConfig(makeClientUser({ name: "R", email: "r@x.y", role: "SALES_REPRESENTATIVE" })).scopedToOwnCustomers).toBe(true);
   });

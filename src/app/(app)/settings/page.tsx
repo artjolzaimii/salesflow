@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/server/auth/session";
-import { AdminPlaceholder } from "@/components/management/reference-tables";
+import { ExchangeRatesView } from "@/components/management/exchange-rates-view";
 
 export const metadata: Metadata = { title: "Settings" };
 
-/** Server-side gate: the role must hold `settings.manage` (see src/lib/permissions.ts). */
+/** Exchange-rate management: managers and admins (`exchangeRates.manage`). */
 export default async function SettingsPage() {
-  await requirePagePermission("settings.manage");
-  return <AdminPlaceholder />;
+  await requirePagePermission("exchangeRates.manage");
+  return <ExchangeRatesView />;
 }

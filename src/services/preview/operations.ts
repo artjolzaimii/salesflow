@@ -8,8 +8,8 @@
  */
 import { addDays, orderTotals } from "@/lib/money";
 import { PREVIEW_TODAY, WAREHOUSE_PICKUP, paymentTermsDays } from "@/mocks/fixtures";
-import type { Customer, Invoice, Order, OrderStatus, Payment, Product, SalesDataset } from "@/lib/types";
-import type { CreateCustomerInput, CreateOrderInput, CreatePaymentInput, SaveProductInput } from "../api";
+import type { Invoice, Order, OrderStatus, Payment, SalesDataset } from "@/lib/types";
+import type { CreateOrderInput, CreatePaymentInput } from "../api";
 
 const nextNumber = (ids: string[]) => Math.max(0, ...ids.map((id) => Number(id.slice(-4)))) + 1;
 const pad4 = (n: number) => String(n).padStart(4, "0");
@@ -92,25 +92,6 @@ export function recordPayment(data: SalesDataset, input: CreatePaymentInput): { 
       ...data,
       invoices: data.invoices.map((i) => (i.id === invoice.id ? { ...i, paid: i.paid + input.amount } : i)),
       payments: [payment, ...data.payments],
-    },
-  };
-}
-
-export function createCustomer(data: SalesDataset, input: CreateCustomerInput): { data: SalesDataset; customer: Customer } {
-  const id = "C-" + (Math.max(...data.customers.map((c) => Number(c.id.slice(2)))) + 1);
-  const customer: Customer = { ...input, id };
-  return { customer, data: { ...data, customers: [...data.customers, customer] } };
-}
-
-export function saveProduct(data: SalesDataset, input: SaveProductInput): { data: SalesDataset; product: Product; created: boolean } {
-  const created = !input.id;
-  const product: Product = { ...input, id: input.id || "P-" + String(data.products.length + 1).padStart(3, "0") };
-  return {
-    product,
-    created,
-    data: {
-      ...data,
-      products: created ? [...data.products, product] : data.products.map((p) => (p.id === product.id ? product : p)),
     },
   };
 }

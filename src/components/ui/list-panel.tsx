@@ -28,7 +28,7 @@ export function ListPanel<T>({
     <Panel className="gap-3 pt-[14px] pb-[10px]">
       {filters}
       {state.loading ? <SkeletonRows /> : null}
-      {state.error ? <ListError message={state.errorBody} onRetry={() => actions.toast(`Retry refetches ${state.endpoint}.`)} /> : null}
+      {state.error ? <ListError message={state.errorBody} onRetry={state.retry ?? (() => actions.toast(`Retry refetches ${state.endpoint}.`))} /> : null}
       {state.empty ? <ListEmpty title={state.emptyTitle} body={state.emptyBody} onClear={state.showClear ? onClear : undefined} clearLabel={clearLabel} /> : null}
       {state.show ? children : null}
     </Panel>
