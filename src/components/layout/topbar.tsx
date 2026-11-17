@@ -3,15 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { breadcrumbTrail, sectionOf, SECTION_HREF, type PageKey } from "@/lib/navigation";
 import { signOutAction } from "@/app/actions/auth";
-import { formatDate, formatMoney } from "@/lib/money";
+import { formatDate } from "@/lib/money";
+import { formatDecimal } from "@/lib/decimal-format";
+import { invoiceBadges } from "@/lib/invoice-status";
 import { useActions } from "@/store/preview-store";
-import { useRole, useScopedData } from "@/store/hooks";
+import { useRole } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { ThemeMenuItem, ThemeToggle } from "./theme-toggle";
 import { qs } from "@/services/client/http";
 import { useApiQuery } from "@/services/client/query";
-import type { CustomerPage, OrderPage } from "@/services/client/types";
+import type { CustomerPage, InvoicePage, OrderPage } from "@/services/client/types";
 import { ORDER_STATUS_LABEL } from "@/lib/labels";
 import { useDebounced } from "@/services/client/use-debounced";
 import { useGo } from "./use-go";
@@ -135,12 +137,8 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
   );
 }
 
-/**
- * Customers and orders are searched in the database (scoped by the server);
- * invoices still come from preview data and are labelled as such.
- */
+/** Customers, orders and invoices are searched in the database, scoped to the caller by the server. */
 function GlobalSearch({ onOpen }: { onOpen: () => void }) {
-  const { invoices, customerById } = useScopedData();
   const go = useGo();
   const [q, setQ] = useState("");
   const [focused, setFocused] = useState(false);
@@ -148,10 +146,10 @@ function GlobalSearch({ onOpen }: { onOpen: () => void }) {
   const debounced = useDebounced(term);
   const live = useApiQuery<CustomerPage>(debounced.length >= 2 ? "/api/customers" + qs({ q: debounced, pageSize: 4 }) : null);
   const liveOrders = useApiQuery<OrderPage>(debounced.length >= 2 ? "/api/orders" + qs({ q: debounced, pageSize: 3 }) : null);
+  const liveInvoices = useApiQuery<InvoicePage>(debounced.length >= 2 ? "/api/invoices" + qs({ q: debounced, pageSize: 3 }) : null);
 
   const results = useMemo(() => {
     if (term.length < 2) return [];
-    const name = (id: string) => customerById[id].name;
     return [
       ...(live.data?.items ?? []).map((c) => ({ key: c.id, kind: "Customer", title: c.businessName, sub: `${c.city} · ${c.nipt}`, pick: () => go.customer(c.id) })),
       ...(liveOrders.data?.items ?? []).map((o) => ({
@@ -161,12 +159,15 @@ function GlobalSearch({ onOpen }: { onOpen: () => void }) {
         sub: `${o.customer.businessName} · ${ORDER_STATUS_LABEL[o.status]}`,
         pick: () => go.order(o.id),
       })),
-      ...invoices
-        .filter((i) => i.id.toLowerCase().includes(term) || name(i.customerId).toLowerCase().includes(term))
-        .slice(0, 3)
-        .map((i) => ({ key: i.id, kind: "Invoice · preview", title: i.id, sub: `${name(i.customerId)} · ${i.status}`, pick: () => go.invoice(i.id) })),
+      ...(liveInvoices.data?.items ?? []).map((i) => ({
+        key: i.id,
+        kind: "Invoice",
+        title: i.invoiceNumber,
+        sub: `${i.customer.businessName} · ${invoiceBadges(i).join(" · ")}`,
+        pick: () => go.invoice(i.id),
+      })),
     ];
-  }, [term, live.data, liveOrders.data, invoices, customerById, go]);
+  }, [term, live.data, liveOrders.data, liveInvoices.data, go]);
 
   const open = focused && term.length >= 2;
 
@@ -218,31 +219,31 @@ function GlobalSearch({ onOpen }: { onOpen: () => void }) {
   );
 }
 
-/** Overdue invoices (preview data until the invoices module is connected). */
+const NOTE_LIMIT = 8;
+
+/** Overdue invoices from the database (oldest due date first), scoped to the caller by the server. */
 function Notifications({ open, onToggle, onPick }: { open: boolean; onToggle: () => void; onPick: () => void }) {
-  const { invoices, customerById } = useScopedData();
   const go = useGo();
+  const overdue = useApiQuery<InvoicePage>("/api/invoices" + qs({ status: "OVERDUE", sort: "dueDate", dir: "asc", pageSize: NOTE_LIMIT }));
+  const count = overdue.data?.total ?? 0;
 
   const notes = useMemo(
-    () => [
-      ...invoices
-        .filter((i) => i.status === "Overdue")
-        .map((i) => ({
-          key: i.id,
-          title: `${i.id} is overdue`,
-          sub: `${customerById[i.customerId].name} · ${formatMoney(i.outstanding, i.currency)} was due ${formatDate(i.dueDate)}`,
-          pick: () => go.invoice(i.id),
-        })),
-    ],
-    [invoices, customerById, go],
+    () =>
+      (overdue.data?.items ?? []).map((i) => ({
+        key: i.id,
+        title: `${i.invoiceNumber} is overdue`,
+        sub: `${i.customer.businessName} · ${formatDecimal(i.outstanding, 2, 2)} ${i.currencyCode} was due ${formatDate(i.dueDate)}`,
+        pick: () => go.invoice(i.id),
+      })),
+    [overdue.data, go],
   );
 
   return (
     <div className="relative">
       <Button iconOnly icon="bell" aria-label="Notifications" aria-expanded={open} onClick={onToggle} className="relative">
-        {notes.length ? (
+        {count ? (
           <span className="absolute -top-[6px] -right-[6px] grid h-[18px] min-w-[18px] place-items-center bg-danger-600 px-1 text-[11px] text-bg tabular-nums">
-            {notes.length}
+            {count}
           </span>
         ) : null}
       </Button>
@@ -262,7 +263,19 @@ function Notifications({ open, onToggle, onPick }: { open: boolean; onToggle: ()
               <span className="text-[12px] text-neutral-700">{n.sub}</span>
             </div>
           ))}
-          {notes.length ? <div className="px-[14px] py-2 text-[11px] text-neutral-700">Derived from overdue invoices and confirmed orders.</div> : null}
+          {notes.length === 0 ? <div className="px-[14px] py-[10px] text-[13px] text-neutral-700">Nothing overdue. You&apos;re all caught up.</div> : null}
+          {count > notes.length ? (
+            <div
+              onClick={() => {
+                onPick();
+                go.section("invoices");
+              }}
+              className={`px-[14px] py-2 text-[12px] ${popRow}`}
+            >
+              {count - notes.length} more overdue · open Invoices
+            </div>
+          ) : null}
+          {notes.length ? <div className="px-[14px] py-2 text-[11px] text-neutral-700">Derived from invoice due dates and recorded payments.</div> : null}
         </div>
       ) : null}
     </div>

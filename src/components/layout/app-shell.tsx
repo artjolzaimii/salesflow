@@ -18,12 +18,11 @@ import { Topbar } from "./topbar";
  */
 /**
  * Sections that still run on fictional fixtures until their backend phase.
- * Customers, products, categories, employees and exchange rates are live.
+ * Customers, products, categories, employees, exchange rates, orders, invoices
+ * and payments are live.
  */
 const PREVIEW_SECTIONS: Partial<Record<ReturnType<typeof sectionOf>, string>> = {
   dashboard: "The dashboard figures",
-  invoices: "Invoices",
-  payments: "Payments",
   reports: "Reports",
   assistant: "AI Assistant conversations",
 };

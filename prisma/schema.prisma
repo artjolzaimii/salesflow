@@ -312,6 +312,16 @@ model Invoice {
   @@map("invoices")
 }
 
+/// Internal invoice numbering (INV-<year>-<000001>): one counter per issue year.
+/// Advanced only by the SQL function next_invoice_number() inside the issuing
+/// transaction; a trigger keeps it moving forward (see the invoice_numbering migration).
+model InvoiceNumberCounter {
+  year      Int    @id
+  lastValue BigInt @map("last_value")
+
+  @@map("invoice_number_counters")
+}
+
 model Payment {
   id             String        @id @default(uuid()) @db.Uuid
   invoiceId      String        @map("invoice_id") @db.Uuid

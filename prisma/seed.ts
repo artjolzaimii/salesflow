@@ -122,6 +122,8 @@ async function main() {
       }
     });
   }
+  // New invoices continue after the seeded INV-2026-00n numbers (see the invoice_numbering migration).
+  await db.$executeRaw`SELECT sync_invoice_number_counters()`;
   const conversation = await db.aIConversation.findFirst({ where: { userId: employees[1].user.id, title: 'Raporti i shitjeve' } });
   if (!conversation) await db.aIConversation.create({ data: { userId: employees[1].user.id, title: 'Raporti i shitjeve', messages: { create: [
     { role: AIMessageRole.USER, content: 'Cilet kliente kane fatura te papaguara?' },

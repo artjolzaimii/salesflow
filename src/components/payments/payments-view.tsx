@@ -1,37 +1,46 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { API_ENDPOINTS } from "@/services/api";
-import { formatDate, formatMoney } from "@/lib/money";
-import { CURRENCIES } from "@/lib/types";
-import { useActions, usePreview } from "@/store/preview-store";
-import { listState, useRole, useScopedData } from "@/store/hooks";
+import { useState } from "react";
+import { formatDecimal } from "@/lib/decimal-format";
+import { option, PAYMENT_METHOD_LABEL } from "@/lib/labels";
+import { formatDate } from "@/lib/money";
+import { qs } from "@/services/client/http";
+import { useApiQuery } from "@/services/client/query";
+import type { PaymentPage } from "@/services/client/types";
+import { useDebounced } from "@/services/client/use-debounced";
+import { useActions } from "@/store/preview-store";
+import { apiListState, useRole } from "@/store/hooks";
 import { Button } from "@/components/ui/button";
-import { CurrencyTotals, ListPanel } from "@/components/ui/list-panel";
+import { SelectOptions } from "@/components/ui/field";
+import { CurrencyTotals, FilterRow, ListPanel } from "@/components/ui/list-panel";
 import { PageHeader } from "@/components/ui/page-header";
+import { Pager } from "@/components/ui/pager";
 import { useGo } from "@/components/layout/use-go";
 
+const PAGE_SIZE = 10;
+const BLANK = { q: "", method: "all", currency: "all", from: "", to: "" };
+
+/** Payments from GET /api/payments. Rows open the invoice, which holds the full payment history. */
 export function PaymentsView() {
-  const { payments, customerById } = useScopedData();
-  const dataState = usePreview((s) => s.dataState);
   const role = useRole();
   const actions = useActions();
   const go = useGo();
-  const [q, setQ] = useState("");
+  const [f, setF] = useState(BLANK);
+  const [page, setPage] = useState(0);
+  const q = useDebounced(f.q.trim());
+  const set = (k: keyof typeof BLANK, v: string) => {
+    setF((x) => ({ ...x, [k]: v }));
+    setPage(0);
+  };
 
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return payments.filter(
-      (p) => !t || p.reference.toLowerCase().includes(t) || p.invoiceId.toLowerCase().includes(t) || customerById[p.customerId].name.toLowerCase().includes(t),
-    );
-  }, [payments, customerById, q]);
-
-  const state = listState(dataState, filtered, "payments", API_ENDPOINTS.payments);
-  const totals = CURRENCIES.map((cur) => {
-    const rows = filtered.filter((p) => p.currency === cur);
-    if (!rows.length) return null;
-    return { cur, label: `${rows.length} ${rows.length === 1 ? "payment" : "payments"} ·`, value: formatMoney(rows.reduce((a, p) => a + p.amount, 0), cur) };
-  }).filter((t) => t !== null);
+  const list = useApiQuery<PaymentPage>("/api/payments" + qs({ q, method: f.method, currency: f.currency, from: f.from, to: f.to, page: page + 1, pageSize: PAGE_SIZE }));
+  const filtered = !!q || f.method !== "all" || f.currency !== "all" || !!f.from || !!f.to;
+  const state = apiListState(list, list.data?.items ?? [], "payments", filtered);
+  const totals = (list.data?.totals ?? []).map((t) => ({
+    cur: t.currencyCode,
+    label: `${t.count} ${t.count === 1 ? "payment" : "payments"} ·`,
+    value: formatDecimal(t.amount, 2, 2),
+  }));
 
   return (
     <>
@@ -48,24 +57,43 @@ export function PaymentsView() {
       />
       <ListPanel
         state={state}
-        onClear={() => setQ("")}
-        clearLabel="Clear search"
+        onClear={() => {
+          setF(BLANK);
+          setPage(0);
+        }}
         filters={
-          <input
-            className="input w-[280px] max-w-full"
-            type="search"
-            aria-label="Search payments"
-            placeholder="Reference, invoice or customer"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+          <FilterRow>
+            <input
+              className="input w-[280px] max-w-full"
+              type="search"
+              aria-label="Search payments"
+              placeholder="Reference, invoice or customer"
+              value={f.q}
+              onChange={(e) => set("q", e.target.value)}
+            />
+            <select className="input w-auto" aria-label="Payment method" value={f.method} onChange={(e) => set("method", e.target.value)}>
+              <option value="all">All methods</option>
+              <SelectOptions options={option(PAYMENT_METHOD_LABEL)} />
+            </select>
+            <select className="input w-auto" aria-label="Currency" value={f.currency} onChange={(e) => set("currency", e.target.value)}>
+              <option value="all">All currencies</option>
+              <option value="ALL">ALL</option>
+              <option value="EUR">EUR</option>
+              <option value="USD">USD</option>
+            </select>
+            <div className="flex items-center gap-[6px] text-[13px] text-neutral-700">
+              <span>Paid</span>
+              <input className="input w-auto" type="date" aria-label="Paid from" value={f.from} onChange={(e) => set("from", e.target.value)} />
+              <span>to</span>
+              <input className="input w-auto" type="date" aria-label="Paid to" value={f.to} onChange={(e) => set("to", e.target.value)} />
+            </div>
+          </FilterRow>
         }
       >
         <div className="overflow-x-auto">
           <table className="table min-w-[820px]">
             <thead>
               <tr>
-                <th>Payment</th>
                 <th>Reference</th>
                 <th>Invoice</th>
                 <th>Customer</th>
@@ -78,19 +106,19 @@ export function PaymentsView() {
             <tbody>
               {state.rows.map((p) => (
                 <tr key={p.id} className="clickable" onClick={() => go.invoice(p.invoiceId)}>
-                  <td className="whitespace-nowrap text-neutral-700">{p.id}</td>
-                  <td className="font-medium whitespace-nowrap">{p.reference}</td>
-                  <td className="whitespace-nowrap">{p.invoiceId}</td>
-                  <td>{customerById[p.customerId].name}</td>
-                  <td className="whitespace-nowrap">{formatDate(p.date)}</td>
-                  <td>{p.method}</td>
-                  <td className="num whitespace-nowrap">{formatMoney(p.amount)}</td>
-                  <td>{p.currency}</td>
+                  <td className="font-medium whitespace-nowrap">{p.reference ?? <span className="text-muted font-normal">No reference</span>}</td>
+                  <td className="whitespace-nowrap">{p.invoiceNumber}</td>
+                  <td>{p.customer.businessName}</td>
+                  <td className="whitespace-nowrap">{formatDate(p.paymentDate)}</td>
+                  <td>{PAYMENT_METHOD_LABEL[p.method]}</td>
+                  <td className="num whitespace-nowrap">{formatDecimal(p.amount, 2, 2)}</td>
+                  <td>{p.currencyCode}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <Pager page={page} pages={list.data?.pages ?? 1} total={list.data?.total ?? 0} size={PAGE_SIZE} onPage={setPage} />
         <CurrencyTotals items={totals} />
       </ListPanel>
     </>

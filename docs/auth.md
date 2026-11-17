@@ -81,10 +81,10 @@ All routes return JSON with `Cache-Control: no-store` and error bodies of the fo
 | `GET /api/orders/:id` | Order with items **from snapshots** and derived `invoiced` |
 | `POST /api/orders/:id/status` | `{ status }` operational transition |
 | `POST /api/invoices/:id/cancel` | `{ reason }` |
-| `POST /api/invoices/:id/replacement` | `{ issueDate, dueDate }` replacement for a cancelled invoice |
+| `POST /api/invoices/:id/replacement` | `{ dueDate }` replacement for a cancelled invoice (issue date is today) |
 | `POST /api/payments` | `{ invoiceId, amount: "12.34", paymentDate, method, reference?, idempotencyKey }`; 201 new, 200 replay |
 
-Phase 5B added the customer, employee, product, category and exchange-rate modules, and Phase 5C the order module: see [api.md](api.md). Invoice issuance and the payment UI come later.
+Phase 5B added the customer, employee, product, category and exchange-rate modules, Phase 5C the order module, and Phase 5D invoice issuance, invoice and payment lists and details, and the payment UI: see [api.md](api.md).
 
 ## Business rules
 
@@ -102,7 +102,7 @@ Phase 5B added the customer, employee, product, category and exchange-rate modul
   - Cancellation is final: no CANCELLED → ISSUED.
 - **Replacement:**
   - Allowed only for a cancelled invoice that hasn't been replaced, on an order that isn't cancelled.
-  - It copies the order's locked financial snapshot; only the number (`<original>-R<n>`) and the dates change.
+  - It copies the order's locked financial snapshot; only the number (the next `INV-<year>-<000001>`) and the dates change, and `replaces_invoice_id` links it to the cancelled invoice.
   - At most one ISSUED invoice per order, enforced by a partial unique index.
   - A cancelled invoice can be replaced only once (`replaces_invoice_id` is unique).
   - Correcting *amounts* needs a new order. Credit notes are out of scope.

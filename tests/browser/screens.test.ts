@@ -1,7 +1,7 @@
 import { chromium, type Browser, type Page } from "playwright-core";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEMO_PASSWORD } from "../support/env";
-import { db, freshNipt, NIPT } from "../support/fixtures";
+import { createOrder, db, freshNipt, NIPT } from "../support/fixtures";
 import { base } from "../support/http";
 
 /**
@@ -192,7 +192,7 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
   it("preview modules stay clearly labelled", async (ctx) => {
     if (!browser) return ctx.skip();
     const page = await signedIn("admin@salesflow.test");
-    for (const path of ["/dashboard", "/invoices", "/payments", "/reports", "/assistant"]) {
+    for (const path of ["/dashboard", "/reports", "/assistant"]) {
       await page.goto(base + path);
       await expect.poll(() => page.getByRole("note").filter({ visible: true }).getByText("Preview data").count(), { message: path }).toBe(1);
     }
@@ -259,6 +259,93 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
     await page.locator("main").getByRole("button", { name: "New order" }).filter({ visible: true }).click();
     await page.waitForURL(/\/orders\/new\?customer=/);
     await expect.poll(() => page.locator("#no-cust").filter({ visible: true }).inputValue()).toContain("Market Alba SHPK");
+    await page.context().close();
+  });
+
+  it("invoices: issues an invoice from a confirmed order, then records a partial payment", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const order = await createOrder({ nipt: NIPT.adriatik, lines: [{ sku: "DRK-001", qty: "10" }] }); // 960.00 ALL
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/orders");
+    await page.getByLabel("Search orders", { exact: true }).fill(order.orderNumber);
+    await expect.poll(() => rowWith(page, order.orderNumber).count()).toBe(1);
+    await rowWith(page, order.orderNumber).click();
+    const drawer = page.getByRole("dialog", { name: "Order details" });
+    await drawer.getByRole("button", { name: "Issue invoice" }).click();
+    const dialog = page.getByRole("dialog", { name: `Issue invoice for ${order.orderNumber}` });
+    await expect.poll(() => dialog.locator("#dd-due").inputValue()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    await dialog.getByRole("button", { name: "Issue invoice" }).click();
+    await expect.poll(() => drawer.locator(".tag").filter({ hasText: /^Invoiced$/ }).count()).toBe(1);
+    const invoice = await db().invoice.findFirstOrThrow({ where: { orderId: order.id } });
+    expect(invoice.invoiceNumber).toMatch(/^INV-\d{4}-\d{6}$/);
+    expect(invoice.total.toFixed(2)).toBe("960.00");
+
+    // The order drawer links to the invoice drawer.
+    await drawer.getByRole("link", { name: invoice.invoiceNumber }).click();
+    await page.waitForURL("**/invoices");
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0); // invoices are live: no preview banner
+    const inv = page.getByRole("dialog", { name: "Invoice details" });
+    await expect.poll(() => inv.getByRole("heading", { name: invoice.invoiceNumber }).count()).toBe(1);
+    await inv.getByRole("button", { name: "Register payment" }).click();
+    const pay = page.getByRole("dialog", { name: "Register payment" });
+    await expect.poll(() => pay.getByText("960.00 ALL").count()).toBeGreaterThan(0);
+    await pay.locator("#pd-amt").fill("960.01");
+    await expect.poll(() => pay.getByText("Exceeds the outstanding balance of 960.00 ALL.").count()).toBe(1);
+    await pay.locator("#pd-amt").fill("400");
+    await pay.locator("#pd-ref").fill("BKT-UI-1");
+    await pay.getByRole("button", { name: "Record payment" }).click();
+    await expect.poll(() => inv.locator(".tag").filter({ hasText: /^Partial$/ }).count()).toBe(1);
+    await expect.poll(() => inv.getByText("560.00 ALL").count()).toBeGreaterThan(0);
+    expect(await db().payment.count({ where: { invoiceId: invoice.id } })).toBe(1);
+
+    await page.goto(base + "/payments");
+    await page.getByLabel("Search payments", { exact: true }).fill("BKT-UI-1");
+    await expect.poll(() => rowWith(page, invoice.invoiceNumber).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("invoices: cancels with a reason and issues a replacement", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const order = await createOrder({ nipt: NIPT.adriatik });
+    const page = await signedIn("admin@salesflow.test");
+    const res = await page.request.post(base + "/api/invoices", { data: { orderId: order.id, dueDate: new Date(Date.now() + 20 * 864e5).toISOString().slice(0, 10) } });
+    expect(res.status()).toBe(201);
+    const first = (await res.json()).invoice;
+    await page.goto(base + "/invoices");
+    await page.getByLabel("Search invoices", { exact: true }).fill(first.invoiceNumber);
+    await expect.poll(() => rowWith(page, first.invoiceNumber).count()).toBe(1);
+    await rowWith(page, first.invoiceNumber).click();
+    const inv = page.getByRole("dialog", { name: "Invoice details" });
+    await inv.getByRole("button", { name: "Cancel invoice" }).click();
+    const cancel = page.getByRole("alertdialog", { name: `Cancel ${first.invoiceNumber}?` });
+    await cancel.getByRole("button", { name: "Cancel invoice" }).click();
+    await expect.poll(() => cancel.getByText("Give a reason of at least 3 characters.").count()).toBe(1);
+    await cancel.locator("#ci-reason").fill("Customer changed billing details");
+    await cancel.getByRole("button", { name: "Cancel invoice" }).click();
+    await expect.poll(() => inv.locator(".tag").filter({ hasText: /^Cancelled$/ }).count()).toBe(1);
+    await expect.poll(() => inv.getByText(/Customer changed billing details/).count()).toBe(1);
+    await inv.getByRole("button", { name: "Issue replacement invoice" }).click();
+    await page.getByRole("dialog", { name: `Replace ${first.invoiceNumber}` }).getByRole("button", { name: "Issue replacement" }).click();
+    await expect.poll(() => inv.getByText("Replaces").count()).toBe(1);
+    const repl = await db().invoice.findFirstOrThrow({ where: { replacesInvoiceId: first.id } });
+    await expect.poll(() => inv.getByRole("heading", { name: repl.invoiceNumber }).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("invoices: a representative sees their invoices read-only", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.korce@salesflow.test");
+    await page.goto(base + "/invoices");
+    await expect.poll(() => rowWith(page, "INV-2026-003").count()).toBe(1); // Restorant Liqeni (own customer)
+    expect(await rowWith(page, "INV-2026-001").count()).toBe(0);
+    expect(await page.getByRole("button", { name: "Register payment" }).filter({ visible: true }).count()).toBe(0);
+    await rowWith(page, "INV-2026-003").click();
+    const inv = page.getByRole("dialog", { name: "Invoice details" });
+    await expect.poll(() => inv.getByRole("heading", { name: "INV-2026-003" }).count()).toBe(1);
+    expect(await inv.getByRole("button").filter({ hasText: /Register payment|Cancel invoice|replacement/ }).count()).toBe(0);
+    await page.goto(base + "/payments");
+    await expect.poll(() => page.locator("tbody tr").filter({ visible: true }).count()).toBeGreaterThanOrEqual(0);
+    expect(await rowWith(page, "INV-2026-001").count()).toBe(0);
     await page.context().close();
   });
 

@@ -13,7 +13,6 @@ import { Icon, type IconName } from "@/components/ui/icon";
 import { PageHeader } from "@/components/ui/page-header";
 import { SkeletonCards } from "@/components/ui/states";
 import { StatusBadge, statusColor } from "@/components/ui/status-badge";
-import { useGo } from "@/components/layout/use-go";
 import { MoneyCell } from "@/components/sales/money-cell";
 
 const GRID_2 = "grid gap-5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr))]";
@@ -60,7 +59,6 @@ function DashboardReady() {
   const allOrders = usePreview((s) => s.data.orders);
   const products = usePreview((s) => s.data.products);
   const today = usePreview((s) => s.today);
-  const go = useGo();
 
   const d = useMemo(
     () =>
@@ -224,8 +222,9 @@ function DashboardReady() {
           ))}
         </RecentTable>
         <RecentTable title="Recently issued invoices" head={["Invoice", "Customer", "Issued", "Total", "Status"]}>
+          {/* Preview sample rows: not linked, since the invoice drawer now shows database invoices only. */}
           {scoped.invoices.slice(0, 5).map((i: InvoiceView) => (
-            <tr key={i.id} className="clickable" onClick={() => go.invoice(i.id)}>
+            <tr key={i.id}>
               <td className="font-medium whitespace-nowrap">{i.id}</td>
               <td>{name(i.customerId)}</td>
               <td className="whitespace-nowrap">{formatDate(i.issueDate)}</td>
@@ -238,7 +237,7 @@ function DashboardReady() {
         </RecentTable>
         <RecentTable title="Outstanding invoices" head={["Invoice", "Customer", "Due", "Outstanding", "Status"]}>
           {open.slice(0, 5).map((i) => (
-            <tr key={i.id} className="clickable" onClick={() => go.invoice(i.id)}>
+            <tr key={i.id}>
               <td className="font-medium whitespace-nowrap">{i.id}</td>
               <td>{name(i.customerId)}</td>
               <td className="whitespace-nowrap">{formatDate(i.dueDate)}</td>
@@ -251,7 +250,7 @@ function DashboardReady() {
         </RecentTable>
         <RecentTable title="Recent payments" head={["Reference", "Invoice", "Date", "Method", "Amount"]}>
           {scoped.payments.slice(0, 5).map((p: Payment) => (
-            <tr key={p.id} className="clickable" onClick={() => go.invoice(p.invoiceId)}>
+            <tr key={p.id}>
               <td className="whitespace-nowrap">{p.reference}</td>
               <td className="font-medium whitespace-nowrap">{p.invoiceId}</td>
               <td className="whitespace-nowrap">{formatDate(p.date)}</td>

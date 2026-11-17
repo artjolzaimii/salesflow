@@ -3,6 +3,7 @@ import type { OrderStatus } from "@/generated/prisma/client";
 import type { Principal } from "@/server/auth/principal";
 import { getDb } from "@/server/db";
 import { computeLine, sumTotals, unitPriceInCurrency } from "@/server/domain/pricing";
+import { businessDate } from "@/lib/business-date";
 
 export const db = () => getDb();
 
@@ -73,7 +74,7 @@ export async function createOrder(spec: OrderSpec) {
 }
 
 /** Issues an invoice that snapshots the order (direct insert, as the guard expects). */
-export async function invoiceOrder(orderId: string, opts: { replaces?: string; number?: string } = {}) {
+export async function invoiceOrder(orderId: string, opts: { replaces?: string; number?: string; issueDate?: string; dueDate?: string } = {}) {
   const o = await db().order.findUniqueOrThrow({ where: { id: orderId } });
   return db().invoice.create({
     data: {
@@ -87,15 +88,15 @@ export async function invoiceOrder(orderId: string, opts: { replaces?: string; n
       taxableTotal: o.taxableTotal,
       vatTotal: o.vatTotal,
       total: o.grandTotal,
-      issueDate: new Date("2026-11-01T00:00:00Z"),
-      dueDate: new Date("2026-12-01T00:00:00Z"),
+      issueDate: new Date((opts.issueDate ?? "2026-11-01") + "T00:00:00Z"),
+      dueDate: new Date((opts.dueDate ?? "2026-12-01") + "T00:00:00Z"),
     },
   });
 }
 
-export async function invoicedOrder(spec: OrderSpec) {
+export async function invoicedOrder(spec: OrderSpec & { issueDate?: string; dueDate?: string }) {
   const order = await createOrder(spec);
-  const invoice = await invoiceOrder(order.id);
+  const invoice = await invoiceOrder(order.id, { issueDate: spec.issueDate, dueDate: spec.dueDate });
   return { order, invoice };
 }
 
@@ -146,3 +147,14 @@ export async function dbError(p: Promise<unknown>): Promise<string> {
   }
   return "RESOLVED";
 }
+
+/** Business date (Europe/Tirane) shifted by whole days, YYYY-MM-DD. */
+export function daysFromToday(days: number): string {
+  const d = new Date(businessDate() + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** next_invoice_number() output: internal INV-<year>-<6 digits>. */
+export const INVOICE_NUMBER = /^INV-\d{4}-\d{6}$/;
+export const invoiceSeq = (n: string) => Number(n.slice(-6));

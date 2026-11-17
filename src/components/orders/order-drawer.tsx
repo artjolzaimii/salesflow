@@ -6,7 +6,7 @@ import { formatDate } from "@/lib/money";
 import { ROUTES } from "@/lib/navigation";
 import { apiFetch, ApiError, errorMessage } from "@/services/client/http";
 import { invalidate, useApiQuery } from "@/services/client/query";
-import type { OrderDetailDto } from "@/services/client/types";
+import type { InvoiceDetailDto, OrderDetailDto } from "@/services/client/types";
 import { useActions, usePreview } from "@/store/preview-store";
 import { Button } from "@/components/ui/button";
 import { Drawer, KeyValues } from "@/components/ui/overlay";
@@ -14,6 +14,10 @@ import { AlertBanner, SkeletonRows } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DecimalSummary, SnapshotItemsTable } from "@/components/sales/document-parts";
 import { useGo } from "@/components/layout/use-go";
+import { formatDecimal } from "@/lib/decimal-format";
+import { paymentTermsDays } from "@/lib/labels";
+import { refreshFinancials } from "@/components/invoices/invoice-badges";
+import { DueDateDialog } from "@/components/invoices/invoice-dialogs";
 
 /** Refetch everything that shows this order: lists, the detail, and the customer's history. */
 export function refreshOrder(orderId: string, customerId?: string) {
@@ -61,6 +65,7 @@ function OrderBody({ id }: { id: string }) {
   const go = useGo();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [issuing, setIssuing] = useState(false);
 
   if (q.loading) return <SkeletonRows />;
   if (!q.data) {
@@ -111,7 +116,8 @@ function OrderBody({ id }: { id: string }) {
     : o.delivery
       ? [o.delivery.label, o.delivery.street, o.delivery.city].filter(Boolean).join(", ")
       : "—";
-  const anyAction = can.confirm || can.markProcessing || can.markDelivered || can.edit || can.cancel;
+  const anyAction = can.confirm || can.issueInvoice || can.markProcessing || can.markDelivered || can.edit || can.cancel;
+  const latestInvoice = o.invoiceHistory[o.invoiceHistory.length - 1];
 
   return (
     <>
@@ -121,6 +127,11 @@ function OrderBody({ id }: { id: string }) {
           {can.confirm ? (
             <Button variant="primary" icon="check" disabled={busy} onClick={() => run(`/api/orders/${o.id}/confirm`, { version: o.version }, `${o.orderNumber} confirmed.`)}>
               Confirm order
+            </Button>
+          ) : null}
+          {can.issueInvoice ? (
+            <Button variant="primary" icon="invoices" disabled={busy} onClick={() => setIssuing(true)}>
+              Issue invoice
             </Button>
           ) : null}
           {can.markProcessing ? (
@@ -189,7 +200,27 @@ function OrderBody({ id }: { id: string }) {
           [
             "Invoice",
             o.activeInvoice ? (
-              <span key="i">{o.activeInvoice.invoiceNumber}</span>
+              <a
+                key="i"
+                href={ROUTES.invoices}
+                onClick={(e) => {
+                  e.preventDefault();
+                  go.invoice(o.activeInvoice!.id);
+                }}
+              >
+                {o.activeInvoice.invoiceNumber}
+              </a>
+            ) : latestInvoice ? (
+              <a
+                key="c"
+                href={ROUTES.invoices}
+                onClick={(e) => {
+                  e.preventDefault();
+                  go.invoice(latestInvoice.id);
+                }}
+              >
+                {latestInvoice.invoiceNumber} (cancelled)
+              </a>
             ) : o.status === "CANCELLED" ? (
               <span key="n" className="text-muted">
                 Not applicable
@@ -220,6 +251,34 @@ function OrderBody({ id }: { id: string }) {
         ))}
         <span className="text-[11.5px] text-neutral-700">Step dates appear once status history is recorded; the current status comes from the database.</span>
       </div>
+
+      {issuing ? (
+        <DueDateDialog
+          title={`Issue invoice for ${o.orderNumber}`}
+          intro={`${o.customer.businessName} · ${o.items.length} ${o.items.length === 1 ? "line" : "lines"}. The order's money, rate and items are locked once the invoice is issued.`}
+          summary={
+            <div className="text-[13px] tabular-nums">
+              Total {formatDecimal(o.totals.grandTotal, 2, 2)} {o.currencyCode}
+              {o.currencyCode !== "ALL" ? ` at 1 ${o.currencyCode} = ${o.rateText} ALL (stored on the order)` : ""}
+            </div>
+          }
+          termsDays={paymentTermsDays(o.customer.businessSize)}
+          submitLabel="Issue invoice"
+          onClose={() => setIssuing(false)}
+          onSubmit={async (dueDate) => {
+            try {
+              const res = await apiFetch<{ invoice: InvoiceDetailDto }>("/api/invoices", { method: "POST", body: { orderId: o.id, dueDate, version: o.version } });
+              setIssuing(false);
+              refreshFinancials({ customerId: o.customer.id });
+              refreshOrder(o.id, o.customer.id);
+              actions.toast(`Invoice ${res.invoice.invoiceNumber} issued for ${o.orderNumber}.`);
+            } catch (e) {
+              if (e instanceof ApiError && (e.code === "CONCURRENT_UPDATE" || e.code === "ORDER_ALREADY_INVOICED")) q.refetch();
+              throw e;
+            }
+          }}
+        />
+      ) : null}
     </>
   );
 }

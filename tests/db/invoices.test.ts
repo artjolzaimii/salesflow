@@ -3,9 +3,9 @@ import { cancelInvoice, issueReplacementInvoice } from "@/server/services/invoic
 import { changeOrderStatus, getOrder } from "@/server/services/orders";
 import { recordPayment } from "@/server/services/payments";
 import { positiveAmount } from "@/server/domain/money";
-import { db, dbError, errorCode, invoicedOrder, invoiceOrder, key, MANAGER, NIPT, principalFor } from "../support/fixtures";
+import { daysFromToday, db, dbError, errorCode, INVOICE_NUMBER, invoicedOrder, invoiceOrder, key, MANAGER, NIPT, principalFor } from "../support/fixtures";
 
-const dates = { issueDate: new Date("2026-11-05T00:00:00Z"), dueDate: new Date("2026-12-05T00:00:00Z") };
+const dates = { dueDate: new Date(daysFromToday(30) + "T00:00:00Z") };
 const pay = (invoiceId: string, amount: string) => ({ invoiceId, amount: positiveAmount.parse(amount), paymentDate: new Date(), method: "CASH" as const, idempotencyKey: key() });
 
 describe("invoice cancellation", () => {
@@ -65,8 +65,9 @@ describe("replacement invoices", () => {
     await cancelInvoice(m, invoice.id, "Wrong due date");
     expect((await getOrder(m, order.id)).invoiced).toBe(false);
     const repl = await issueReplacementInvoice(m, invoice.id, dates);
-    expect(repl).toMatchObject({ invoiceNumber: invoice.invoiceNumber + "-R1", status: "ISSUED", currencyCode: "USD", replacesInvoiceId: invoice.id });
-    expect(repl.total.eq(invoice.total)).toBe(true);
+    expect(repl).toMatchObject({ status: "ISSUED", currencyCode: "USD", replaces: { id: invoice.id, invoiceNumber: invoice.invoiceNumber } });
+    expect(repl.invoiceNumber).toMatch(INVOICE_NUMBER);
+    expect(repl.totals.grandTotal).toBe(invoice.total.toFixed(2));
     const view = await getOrder(m, order.id);
     expect(view.invoiced).toBe(true);
     expect(view.invoiceHistory.map((i) => i.status)).toEqual(["CANCELLED", "ISSUED"]);

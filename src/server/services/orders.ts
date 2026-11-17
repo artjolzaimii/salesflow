@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { ymd } from "@/lib/business-date";
 import { CURRENCY_CODES } from "@/lib/labels";
-import { canTransition, ORDER_STATUSES, type OrderStatusCode } from "@/lib/order-status";
+import { canTransition, INVOICEABLE_STATUSES, ORDER_STATUSES, type OrderStatusCode } from "@/lib/order-status";
 import type { Permission } from "@/lib/permissions";
 import { orderCreateSchema, orderQuoteSchema, orderUpdateSchema } from "@/lib/schemas/orders";
 import { assertPermission, hasPermission, type Principal } from "@/server/auth/principal";
@@ -131,7 +131,7 @@ export async function getOrder(p: Principal, orderId: string) {
   const order = await getDb().order.findFirst({
     where: { AND: [{ id: orderId }, orderScope(p)] },
     include: {
-      customer: { select: { id: true, businessName: true, nipt: true, status: true, city: true } },
+      customer: { select: { id: true, businessName: true, nipt: true, status: true, city: true, businessSize: true } },
       salesRep: { select: { id: true, firstName: true, lastName: true } },
       items: { orderBy: [{ productSku: "asc" }, { id: "asc" }], include: { product: { select: { defaultNetAll: true, isActive: true, vatRate: true } } } },
       invoices: { select: { id: true, invoiceNumber: true, status: true, replacesInvoiceId: true }, orderBy: { createdAt: "asc" } },
@@ -204,6 +204,8 @@ export async function getOrder(p: Principal, orderId: string) {
       markProcessing: order.status === "CONFIRMED" && can("orders.fulfil"),
       markDelivered: order.status === "PROCESSING" && can("orders.fulfil"),
       cancel: ["DRAFT", "CONFIRMED", "PROCESSING"].includes(order.status) && !issued && can("orders.cancel"),
+      /** First invoice only; after a cancellation the order is re-invoiced through a replacement (invoice drawer). */
+      issueInvoice: INVOICEABLE_STATUSES.includes(order.status) && order.invoices.length === 0 && can("invoices.issue"),
       overridePrices: can("prices.override"),
     },
   };
@@ -349,7 +351,7 @@ export async function createOrder(p: Principal, raw: unknown) {
  * first, so concurrent writers run one after another and the later one sees
  * the new version and gets a 409 instead of overwriting.
  */
-async function lockOrder(tx: Db, id: string, expectedVersion: string | undefined) {
+export async function lockOrder(tx: Db, id: string, expectedVersion: string | undefined) {
   const rows = await tx.$queryRaw<{ status: OrderStatusCode; updated_at: Date }[]>`
     SELECT status, updated_at FROM orders WHERE id = ${id}::uuid FOR UPDATE`;
   const row = rows[0];

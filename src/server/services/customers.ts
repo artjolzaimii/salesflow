@@ -6,6 +6,9 @@ import { addressPatchSchema, addressSchema, contactPatchSchema, contactSchema, c
 import { assertPermission, hasPermission, isScoped, type Principal } from "@/server/auth/principal";
 import { customerScope, orderScope } from "@/server/auth/scope";
 import { getDb } from "@/server/db";
+import { businessDate, ymd } from "@/lib/business-date";
+import { INVOICE_PAYMENT_STATUS_LABEL } from "@/lib/invoice-status";
+import { deriveInvoiceStatus } from "@/server/domain/invoice-status";
 import { D } from "@/server/domain/money";
 import { conflict, forbidden, invalid, mapDatabaseError, notFound } from "@/server/errors";
 import { listQuery, paged, skipTake } from "@/server/query";
@@ -117,28 +120,26 @@ export async function getCustomer(p: Principal, id: string) {
       where: { invoice: { order: orderWhere } },
       orderBy: { paymentDate: "desc" },
       take: 50,
-      select: { id: true, paymentDate: true, amount: true, currencyCode: true, method: true, reference: true, invoice: { select: { invoiceNumber: true } } },
+      select: { id: true, paymentDate: true, amount: true, currencyCode: true, method: true, reference: true, invoice: { select: { id: true, invoiceNumber: true } } },
     }),
     db.order.count({ where: orderWhere }),
   ]);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = businessDate();
   const invoiceRows = invoices.map((i) => {
-    const paid = i.payments.reduce((s, x) => s.plus(x.amount), D(0));
-    const outstanding = i.total.minus(paid);
-    const due = i.dueDate.toISOString().slice(0, 10);
-    const paymentStatus =
-      i.status === "CANCELLED" ? "Cancelled" : outstanding.lte(0) ? "Paid" : due < today ? "Overdue" : paid.gt(0) ? "Partial" : "Unpaid";
+    const b = deriveInvoiceStatus(i, i.payments.reduce((s, x) => s.plus(x.amount), D(0)), today);
     return {
       id: i.id,
       invoiceNumber: i.invoiceNumber,
-      issueDate: i.issueDate.toISOString().slice(0, 10),
-      dueDate: due,
+      issueDate: ymd(i.issueDate),
+      dueDate: ymd(i.dueDate),
       currencyCode: i.currencyCode,
       total: i.total.toFixed(2),
-      paid: paid.toFixed(2),
-      outstanding: outstanding.toFixed(2),
-      status: paymentStatus,
+      paid: b.paid.toFixed(2),
+      outstanding: b.outstanding.toFixed(2),
+      paymentStatus: b.paymentStatus,
+      overdue: b.overdue,
+      status: i.status === "CANCELLED" ? "Cancelled" : b.overdue ? "Overdue" : INVOICE_PAYMENT_STATUS_LABEL[b.paymentStatus],
     };
   });
   const summary = ["ALL", "EUR", "USD"]
@@ -187,6 +188,7 @@ export async function getCustomer(p: Principal, id: string) {
         currencyCode: x.currencyCode,
         method: x.method,
         reference: x.reference,
+        invoiceId: x.invoice.id,
         invoiceNumber: x.invoice.invoiceNumber,
       })),
       financialSummary: summary,

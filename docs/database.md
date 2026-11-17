@@ -26,9 +26,10 @@ Seed login password for all four users: `ChangeMe-LocalDemo-2026!` (local demo o
 | `prisma/migrations/…_init_salesflow` | Tables, indexes, foreign keys (generated) |
 | `prisma/migrations/…_financial_guards` | Approved `financial-guards.sql`, verbatim: 19 CHECK constraints, 4 triggers |
 | `prisma/migrations/…_payment_guard_snapshot_safe` | Fix for concurrent overpayment under REPEATABLE READ / SERIALIZABLE (see below) |
+| `prisma/migrations/…_invoice_numbering` | Phase 5D: `invoice_number_counters`, `next_invoice_number()`, `sync_invoice_number_counters()` and the forward-only counter trigger |
 | `prisma/seed.ts` | Approved seed (type annotations added so it passes `tsc`; behaviour unchanged) |
 | `prisma.config.ts` | Prisma 7 config: schema, migrations path, seed command, datasource URL from env |
-| `scripts/verify.sql` | Approved verification queries |
+| `scripts/verify.sql` | Verification queries: order reconciliation, invoice payment status (as the app derives it), invoice-number counters |
 | `scripts/verify-guards.ts` | Relationship, reconciliation, guard and concurrency checks |
 | `src/server/db.ts` | Lazy, `server-only` Prisma client for the future API layer |
 | `src/generated/prisma/` | Generated client (git-ignored, lint-ignored) |
@@ -109,6 +110,15 @@ The order module uses the existing schema; no migration was needed.
 - **Editing:** DRAFT and CONFIRMED orders that have never been invoiced. The edit replaces the items and re-snapshots product name, SKU, unit and VAT from the catalogue. Once any invoice exists, the database trigger locks money, rate and items regardless.
 - **Optimistic concurrency:** edits, confirmation and status changes take the order row lock (`SELECT … FOR UPDATE`) and compare `updated_at` with the version the client loaded; a mismatch is a 409 `CONCURRENT_UPDATE`.
 
+## Phase 5D (invoices and payments, migration `20261118090000_invoice_numbering`)
+
+- **One new table:** `invoice_number_counters (year, last_value)`, modelled as `InvoiceNumberCounter`. No other schema change.
+- **`next_invoice_number(year)`** returns `INV-<year>-<6 digits>`. It increments the year's counter with `INSERT … ON CONFLICT DO UPDATE`, which row-locks the counter until the issuing transaction ends. Concurrent issuers therefore queue, a rolled-back issuance gives its number back (no gaps), and a committed number is never handed out again. A trigger only lets counters move forward and forbids deleting them. These are internal SalesFlow numbers, not fiscalized ones.
+- **`sync_invoice_number_counters()`** raises each year's counter to the highest `INV-<year>-<n>` already on record. The migration runs it once (the development database's four seeded invoices put 2026 at 4) and the seed runs it after creating its invoices.
+- **Issuing** (`src/server/services/invoices.ts`) locks the order row, checks status and existing invoices, allocates the number and inserts the snapshot in one transaction. `guard_invoice()` re-verifies the snapshot, the order status and the one-issued-invoice rule; nothing bypasses it.
+- **Payment status** is derived from status, total, payments, due date and today (Europe/Tirane), never stored. The invoice list applies the same rules in SQL so it can filter and sort by status and outstanding balance.
+- **Payments** keep the existing guard, SERIALIZABLE transaction with retry, and idempotency key; the service adds clearer pre-checks (outstanding balance, payment date not in the future or before the issue date).
+
 ## Remaining issues and decisions
 
 - **Still open:**
@@ -116,8 +126,10 @@ The order module uses the existing schema; no migration was needed.
   - A "Blocked" customer state in the UI.
   - Payment terms (business size is optional in the database).
 - **Correcting amounts after invoicing:** a replacement invoice copies the locked order totals. Fixing an amount needs a new order, because credit notes are out of scope.
+- **Invoice numbers:** the four seeded invoices keep their 3-digit numbers (`INV-2026-001`); new ones use 6 digits. Lists sort them naturally. Fiscalization (Albanian e-invoicing) is not integrated.
+- **Payment audit:** payments don't record which user entered them (no column); invoice cancellations do.
+- **Billing address:** invoices show the customer's current billing address; addresses are not snapshotted on invoices.
 - **Database rounding:** `numeric(18,2)` would still round sub-cent input. The payment service rejects it first, and every future write path must use the same validation (`src/server/domain/money.ts`).
 - **Service-layer rules for later phases:**
-  - Sequential fiscal invoice numbering (replacement numbers are `<original>-R<n>`).
   - A status history table (the order drawer's timeline shows reached steps, not their dates).
   - A discount ceiling for representatives, if the business wants one (any role that may create orders can enter 0–100 %).

@@ -5,17 +5,14 @@
  *
  * Holds the in-memory copy of the fictional dataset plus the UI state the
  * prototype kept globally (drawers, dialogs, toast, preview
- * controls). Mutations run through the pure functions in
- * src/services/preview/operations.ts. Nothing is persisted: reloading the page
- * restores the fixtures.
+ * controls). The fixtures only feed the screens still in preview (dashboard,
+ * reports, assistant); nothing is persisted and reloading restores them.
+ * Every business mutation goes through the database APIs.
  */
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { buildFixtureConversations, ASSISTANT_OFFLINE_REPLY } from "@/mocks/assistant";
 import { buildPreviewDataset, PREVIEW_TODAY } from "@/mocks/fixtures";
-import { formatMoney } from "@/lib/money";
 import type { Conversation, DataState, SalesDataset } from "@/lib/types";
-import * as ops from "@/services/preview/operations";
-import type { CreatePaymentInput } from "@/services/api";
 
 export interface ConfirmRequest {
   title: string;
@@ -40,6 +37,7 @@ export interface PreviewState {
   confirm: ConfirmRequest | null;
   /** Database order shown in the order drawer (orders are live since Phase 5C). */
   orderDrawerId: string | null;
+  /** Database invoice shown in the invoice drawer (live since Phase 5D). */
   invoiceDrawerId: string | null;
   /** Open payment dialog, preselected invoice ("" = choose). */
   paymentDialog: { invoiceId: string } | null;
@@ -118,15 +116,9 @@ function createPreviewStore() {
       req?.run();
     },
 
-
-    /* ----- payments ----- */
+    /* ----- payments (dialog only; recorded through POST /api/payments, see payment-dialog.tsx) ----- */
     openPayment: (invoiceId = "") => set({ paymentDialog: { invoiceId } }),
     closePayment: () => set({ paymentDialog: null }),
-    recordPayment: (input: CreatePaymentInput) => {
-      const { data, payment } = ops.recordPayment(get().data, input);
-      set({ data, paymentDialog: null });
-      toast("Payment " + payment.id + " of " + formatMoney(payment.amount, payment.currency) + " recorded in preview.");
-    },
 
     /* ----- products (dialog only; data lives in the database, see product-dialog.tsx) ----- */
     openProduct: (productId = "") => set({ productDialog: { productId } }),

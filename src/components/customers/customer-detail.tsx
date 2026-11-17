@@ -14,7 +14,8 @@ import { Blueprint, Panel } from "@/components/ui/blueprint";
 import { Button } from "@/components/ui/button";
 import { KeyValues } from "@/components/ui/overlay";
 import { EmptyLine, SkeletonRows } from "@/components/ui/states";
-import { StatusBadge, type BadgeLabel } from "@/components/ui/status-badge";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { InvoiceStatusBadges } from "@/components/invoices/invoice-badges";
 import { useGo } from "@/components/layout/use-go";
 import { AddressDialog, ContactDialog } from "./customer-dialogs";
 
@@ -358,7 +359,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
               </thead>
               <tbody>
                 {h.invoices.map((i) => (
-                  <tr key={i.id}>
+                  <tr key={i.id} className="clickable" onClick={() => go.invoice(i.id)}>
                     <td className="font-medium">{i.invoiceNumber}</td>
                     <td>{formatDate(i.issueDate)}</td>
                     <td>{formatDate(i.dueDate)}</td>
@@ -366,7 +367,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
                     <td className="num">{formatDecimal(i.total, 2, 2)}</td>
                     <td className="num">{formatDecimal(i.outstanding, 2, 2)}</td>
                     <td>
-                      <StatusBadge label={i.status as BadgeLabel} />
+                      <InvoiceStatusBadges paymentStatus={i.paymentStatus} overdue={i.overdue} />
                     </td>
                   </tr>
                 ))}
@@ -394,7 +395,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
               </thead>
               <tbody>
                 {h.payments.map((p) => (
-                  <tr key={p.id}>
+                  <tr key={p.id} className="clickable" onClick={() => go.invoice(p.invoiceId)}>
                     <td className="font-medium">{p.reference ?? "—"}</td>
                     <td>{p.invoiceNumber}</td>
                     <td>{formatDate(p.paymentDate)}</td>
@@ -415,7 +416,7 @@ function CustomerDetailView({ c }: { c: CustomerDetailDto }) {
   );
 }
 
-const HISTORY_NOTE = "Read-only history from the database. Invoice and payment management are connected in a later phase.";
+const HISTORY_NOTE = "History from the database (latest 50). Open a row for details; invoices and payments are managed from their drawers.";
 
 function TabPanel({ children, action, note }: { children: ReactNode; action?: ReactNode; note?: boolean | string }) {
   return (

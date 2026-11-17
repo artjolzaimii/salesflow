@@ -3,6 +3,8 @@ import type { getEmployee, listEmployees } from "@/server/services/employees";
 import type { getProduct, listCategories, listProducts } from "@/server/services/catalog";
 import type { currentRates, listRates, rateForOrderDate } from "@/server/services/exchange-rates";
 import type { getOrder, listOrders, quoteOrder } from "@/server/services/orders";
+import type { getInvoice, listInvoices } from "@/server/services/invoices";
+import type { getPayment, listPayments } from "@/server/services/payments";
 
 /**
  * Response types derived from the services themselves (type-only imports; no
@@ -37,3 +39,11 @@ export type OrderItemDto = OrderDetailDto["items"][number];
 export type OrderQuoteDto = Out<typeof quoteOrder>;
 export type CurrentRatesDto = Out<typeof currentRates>;
 export type ApplicableRateDto = Out<typeof rateForOrderDate>;
+
+export type InvoicePage = Out<typeof listInvoices>;
+export type InvoiceRow = InvoicePage["items"][number];
+export type InvoiceDetailDto = Out<typeof getInvoice>;
+
+export type PaymentPage = Out<typeof listPayments>;
+export type PaymentRow = PaymentPage["items"][number];
+export type PaymentDetailDto = Out<typeof getPayment>;

@@ -1,7 +1,7 @@
 import { encode } from "next-auth/jwt";
 import { afterAll, beforeAll, describe, expect, inject, it } from "vitest";
 import { DEMO_PASSWORD, TEST_AUTH_SECRET } from "../support/env";
-import { db, invoicedOrder, key, MANAGER, NIPT, REP_KORCE, REP_TIRANA } from "../support/fixtures";
+import { daysFromToday, db, INVOICE_NUMBER, invoicedOrder, key, MANAGER, NIPT, REP_KORCE, REP_TIRANA } from "../support/fixtures";
 
 /**
  * End-to-end against `next start` on the test database (see global-setup).
@@ -198,11 +198,16 @@ describe.skipIf(!base)("authentication over HTTP", () => {
 
     it("cancels an invoice and issues its replacement", async () => {
       const { invoice } = await invoicedOrder({ nipt: NIPT.marketAlba });
-      expect((await post(`/api/invoices/${invoice.id}/replacement`, { issueDate: "2026-11-05", dueDate: "2026-12-05" }, manager)).status).toBe(409);
+      const dueDate = daysFromToday(30);
+      expect((await post(`/api/invoices/${invoice.id}/replacement`, { dueDate }, manager)).status).toBe(409);
       expect((await post(`/api/invoices/${invoice.id}/cancel`, { reason: "Wrong due date" }, manager)).status).toBe(200);
-      const repl = await post(`/api/invoices/${invoice.id}/replacement`, { issueDate: "2026-11-05", dueDate: "2026-12-05" }, manager);
+      // The issue date is always today; a client-supplied one is refused rather than ignored.
+      expect((await post(`/api/invoices/${invoice.id}/replacement`, { issueDate: "2026-11-05", dueDate }, manager)).status).toBe(422);
+      const repl = await post(`/api/invoices/${invoice.id}/replacement`, { dueDate }, manager);
       expect(repl.status).toBe(201);
-      expect((await repl.json()).invoice.invoiceNumber).toBe(invoice.invoiceNumber + "-R1");
+      const body = (await repl.json()).invoice;
+      expect(body.invoiceNumber).toMatch(INVOICE_NUMBER);
+      expect(body).toMatchObject({ status: "ISSUED", dueDate, replaces: { id: invoice.id, invoiceNumber: invoice.invoiceNumber } });
     });
   });
 

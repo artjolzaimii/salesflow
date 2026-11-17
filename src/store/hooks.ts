@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { paymentStatus } from "@/lib/money";
 import type { UserRole } from "@/lib/permissions";
 import { roleConfig, type RoleConfig } from "@/lib/roles";
-import type { Customer, DataState, Employee, InvoiceView, Order, Payment } from "@/lib/types";
+import type { Customer, Employee, InvoiceView, Order, Payment } from "@/lib/types";
 import { PREVIEW_REP_ID } from "@/mocks/fixtures";
 import { usePreview } from "./preview-store";
 import { useSessionUser } from "./session";
@@ -55,7 +55,7 @@ export function useScopedData(): ScopedData {
   }, [data, scoped, today]);
 }
 
-/** Loading / error / empty / ready flags for list screens, driven by the preview data-state control. */
+/** Loading / error / empty / ready flags for list screens. */
 export interface ListState<T> {
   rows: T[];
   loading: boolean;
@@ -69,23 +69,6 @@ export interface ListState<T> {
   endpoint: string;
   /** Live data: refetch. Preview lists fall back to a toast. */
   retry?: () => void;
-}
-
-export function listState<T>(dataState: DataState, rows: T[], noun: string, endpoint: string): ListState<T> {
-  const ready = dataState === "ready";
-  const isEmpty = dataState === "empty";
-  return {
-    rows: ready ? rows : [],
-    loading: dataState === "loading",
-    error: dataState === "error",
-    show: ready && rows.length > 0,
-    empty: isEmpty || (ready && rows.length === 0),
-    emptyTitle: isEmpty ? `No ${noun} yet` : `No ${noun} match these filters`,
-    emptyBody: isEmpty ? `Records appear here once ${endpoint} returns them.` : "Adjust or clear the filters to widen the results.",
-    showClear: !isEmpty,
-    errorBody: `Could not load ${noun}. ${endpoint} returned 503 Service Unavailable.`,
-    endpoint,
-  };
 }
 
 /**
