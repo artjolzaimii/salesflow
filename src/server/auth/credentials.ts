@@ -1,6 +1,6 @@
 import "server-only";
 import { compare, hash } from "bcryptjs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getDb } from "@/server/db";
 
@@ -22,21 +22,45 @@ export interface VerifiedUser {
 let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= hash(randomUUID(), PASSWORD_HASH_COST));
 
-/* Failed-attempt throttle: per email, in process memory. A multi-instance
-   deployment needs a shared store (see docs/auth.md). */
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILURES = 10;
-const failures = new Map<string, number[]>();
+/* Failed-attempt throttle, in the database (auth_login_throttle) so every
+   server instance shares it: 10 failures for one email within 15 minutes lock
+   that email for 15 minutes. Keys are SHA-256 hashes, so attempted addresses are
+   not stored. The lock applies to the right password too, and the response is
+   the same as for a wrong one. */
+export const THROTTLE_WINDOW_MS = 15 * 60 * 1000;
+export const THROTTLE_MAX_FAILURES = 10;
+export const THROTTLE_LOCK_MS = 15 * 60 * 1000;
 
-function recentFailures(key: string, now: number): number[] {
-  const list = (failures.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-  if (list.length) failures.set(key, list);
-  else failures.delete(key);
-  return list;
+const throttleKey = (email: string) => createHash("sha256").update("email:" + email).digest("hex");
+
+async function isLocked(key: string): Promise<boolean> {
+  const row = await getDb().authLoginThrottle.findUnique({ where: { key }, select: { lockedUntil: true } });
+  return !!row?.lockedUntil && row.lockedUntil > new Date();
 }
 
-export function resetLoginThrottle() {
-  failures.clear();
+async function recordFailure(key: string): Promise<void> {
+  const db = getDb();
+  const windowStart = new Date(Date.now() - THROTTLE_WINDOW_MS);
+  const lockUntil = new Date(Date.now() + THROTTLE_LOCK_MS);
+  // One atomic upsert: concurrent failures from several instances can't undercount.
+  await db.$executeRaw`
+    INSERT INTO auth_login_throttle AS t (key, failures, window_started_at, locked_until)
+    VALUES (${key}, 1, now(), NULL)
+    ON CONFLICT (key) DO UPDATE SET
+      failures = CASE WHEN t.window_started_at < ${windowStart} THEN 1 ELSE t.failures + 1 END,
+      window_started_at = CASE WHEN t.window_started_at < ${windowStart} THEN now() ELSE t.window_started_at END,
+      locked_until = CASE
+        WHEN (CASE WHEN t.window_started_at < ${windowStart} THEN 1 ELSE t.failures + 1 END) >= ${THROTTLE_MAX_FAILURES} THEN ${lockUntil}
+        ELSE t.locked_until END`;
+  // Housekeeping: rows idle for a day and not locked are dropped (indexed).
+  await db.authLoginThrottle.deleteMany({
+    where: { windowStartedAt: { lt: new Date(Date.now() - 24 * 3600 * 1000) }, OR: [{ lockedUntil: null }, { lockedUntil: { lt: new Date() } }] },
+  });
+}
+
+/** Clears the throttle (tests only). */
+export async function resetLoginThrottle() {
+  await getDb().authLoginThrottle.deleteMany({});
 }
 
 /**
@@ -49,8 +73,11 @@ export async function verifyCredentials(raw: unknown): Promise<VerifiedUser | nu
   if (!parsed.success) return null;
   const { email, password } = parsed.data;
 
-  const now = Date.now();
-  if (recentFailures(email, now).length >= MAX_FAILURES) return null;
+  const key = throttleKey(email);
+  if (await isLocked(key)) {
+    await compare(password, await getDummyHash()); // same timing as a real check
+    return null;
+  }
 
   const user = await getDb().user.findUnique({
     where: { email },
@@ -60,9 +87,9 @@ export async function verifyCredentials(raw: unknown): Promise<VerifiedUser | nu
   const enabled = !!user && user.isActive && (user.employee ? user.employee.isActive : true);
 
   if (!user || !ok || !enabled) {
-    failures.set(email, [...recentFailures(email, now), now]);
+    await recordFailure(key);
     return null;
   }
-  failures.delete(email);
+  await getDb().authLoginThrottle.deleteMany({ where: { key } });
   return { id: user.id, email: user.email };
 }

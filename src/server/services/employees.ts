@@ -167,6 +167,8 @@ export async function updateEmployee(p: Principal, id: string, raw: unknown) {
   await db.$transaction(async (tx) => {
     if (reassignCustomersTo) await tx.customer.updateMany({ where: { assignedRepId: id }, data: { assignedRepId: reassignCustomersTo } });
     await tx.employee.update({ where: { id }, data });
+    // Deactivation ends every open session of the linked account at once.
+    if (deactivating && current.userId) await tx.authSession.updateMany({ where: { userId: current.userId, revokedAt: null }, data: { revokedAt: new Date() } });
   });
   return getEmployee(p, id);
 }

@@ -97,6 +97,20 @@ describe("Anthropic adapter (official SDK, fake transport)", () => {
     expect((res.providerContent as { type: string }[])[0].type).toBe("thinking");
   });
 
+  it("sends no fallback (and no beta header) when the fallback is off, the default", async () => {
+    let headers: Headers | undefined;
+    let body: Record<string, unknown> = {};
+    const fetch = async (_u: string | URL | Request, init?: RequestInit) => {
+      headers = new Headers(init?.headers);
+      body = JSON.parse(String(init?.body));
+      return reply(200, { id: "m", type: "message", role: "assistant", model: "claude-opus-5-5", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } });
+    };
+    const provider = new AnthropicProvider({ ...cfg, fallbacks: "off" }, { apiKey: "test-key", fetch: fetch as typeof globalThis.fetch, maxRetries: 0 });
+    await provider.complete(req());
+    expect(body).not.toHaveProperty("fallbacks");
+    expect(headers!.get("anthropic-beta") ?? "").not.toContain("server-side-fallback");
+  });
+
   it("turns outages, rate limits and bad credentials into safe provider errors", async () => {
     const cases: [number, string][] = [
       [529, "unavailable"],

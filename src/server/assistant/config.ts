@@ -10,6 +10,12 @@ const int = (name: string, fallback: number, min: number, max: number) => {
   return Number.isInteger(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
 
+const num = (name: string, fallback: number, min: number, max: number) => {
+  const raw = process.env[name];
+  const n = raw === undefined || raw === "" ? fallback : Number(raw);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+};
+
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
@@ -22,8 +28,12 @@ export function assistantConfig() {
     model: process.env.ASSISTANT_MODEL || "claude-opus-5-5",
     /** "" disables the effort parameter (for models that don't accept it). */
     effort: (EFFORTS as readonly string[]).includes(effort) ? (effort as Effort) : null,
-    /** "default" = server-side refusal fallback chosen by the API; "off" disables it. */
-    fallbacks: process.env.ASSISTANT_FALLBACKS === "off" ? ("off" as const) : ("default" as const),
+    /**
+     * Server-side refusal fallback (another model answers when the configured one declines).
+     * Off unless explicitly approved with ASSISTANT_FALLBACKS=default: a fallback silently
+     * changes the model (and cost) that answers financial questions.
+     */
+    fallbacks: process.env.ASSISTANT_FALLBACKS === "default" ? ("default" as const) : ("off" as const),
     maxOutputTokens: int("ASSISTANT_MAX_OUTPUT_TOKENS", 8000, 512, 32000),
     /** Model calls per question (each may request tools). */
     maxRounds: int("ASSISTANT_MAX_ROUNDS", 6, 1, 12),
@@ -43,12 +53,17 @@ export function assistantConfig() {
     maxInputChars: int("ASSISTANT_MAX_INPUT_CHARS", 2_000, 100, 20_000),
     /** Questions per user per rolling hour (counted in the database). */
     requestsPerHour: int("ASSISTANT_REQUESTS_PER_HOUR", 30, 1, 10_000),
+    /** Questions being answered at once across all users and server instances. */
+    maxConcurrent: int("ASSISTANT_MAX_CONCURRENT", 10, 1, 1_000),
+    /** Estimated model spend caps over a rolling 24 hours (USD), from the usage stored with each answer. */
+    dailyUsdPerUser: num("ASSISTANT_DAILY_USD_PER_USER", 5, 0.01, 10_000),
+    dailyUsdTotal: num("ASSISTANT_DAILY_USD_TOTAL", 50, 0.01, 1_000_000),
   };
 }
 
 export type AssistantConfig = ReturnType<typeof assistantConfig>;
 
-/** USD per million tokens for cost estimates in message metadata (docs/assistant.md); unknown models report no estimate. */
+/** USD per million tokens for cost estimates and spend caps (docs/assistant.md). Unknown models are costed at the highest listed price. */
 export const PRICES: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
   "claude-opus-5-5": { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
   "claude-sonnet-5-5": { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },

@@ -46,7 +46,7 @@ describe("credential verification (Auth.js authorize)", () => {
   it("throttles repeated failures for an email, even for the right password afterwards", async () => {
     for (let i = 0; i < 10; i++) await verifyCredentials({ email: MANAGER, password: "wrong-" + i });
     expect(await verifyCredentials({ email: MANAGER, password: DEMO_PASSWORD })).toBeNull();
-    resetLoginThrottle();
+    await resetLoginThrottle();
     expect(await verifyCredentials({ email: MANAGER, password: DEMO_PASSWORD })).not.toBeNull();
   });
 });

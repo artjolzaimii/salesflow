@@ -126,6 +126,12 @@ The order module uses the existing schema; no migration was needed.
 - **`invoices.billing_address_snapshot`** (nullable `jsonb`, CHECK: an object): business name, NIPT and billing address at issue. Existing invoices stay `NULL`. `guard_invoice()` now refuses any change to it, and requires a replacement to carry the replaced invoice's snapshot when that invoice has one. All other guard rules are unchanged.
 - **Indexes:** `invoices (status, issue_date)` and `payments (payment_date)` for the reporting date-range aggregations. See [reporting.md](reporting.md).
 
+## Phase 6A (security, migration `20261120090000_auth_sessions_login_throttle`)
+
+- **`auth_sessions`:** one row per sign-in (id carried in the session cookie), with `expires_at` (8 h absolute) and `revoked_at` (sign-out, deactivation). Rows cascade with their user.
+- **`auth_login_throttle`:** failed sign-ins per hashed email, shared by all instances.
+- **Pool:** the Prisma pg pool now sets `max`, a connect timeout and `statement_timeout` (env-configurable; see [security.md](security.md)).
+
 ## Remaining issues and decisions
 
 - **Still open:**

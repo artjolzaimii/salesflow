@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadPrincipal } from "@/server/auth/load-principal";
+import { createSession } from "@/server/auth/sessions";
 import { customerListQuery, listCustomers } from "@/server/services/customers";
 import { cancelInvoice } from "@/server/services/invoices";
 import { changeOrderStatus, getOrder } from "@/server/services/orders";
@@ -66,9 +67,11 @@ describe("sales representative ownership", () => {
 
   it("the session loader re-reads role and active flags from the database", async () => {
     const id = (await principalFor(REP_KORCE)).userId;
-    expect((await loadPrincipal(id))?.role).toBe("SALES_REPRESENTATIVE");
+    const sid = await createSession(id);
+    expect((await loadPrincipal(id, sid))?.role).toBe("SALES_REPRESENTATIVE");
     await db().user.update({ where: { id }, data: { isActive: false } });
-    expect(await loadPrincipal(id)).toBeNull();
+    expect(await loadPrincipal(id, sid)).toBeNull();
     await db().user.update({ where: { id }, data: { isActive: true } });
+    expect((await loadPrincipal(id, sid))?.role).toBe("SALES_REPRESENTATIVE");
   });
 });

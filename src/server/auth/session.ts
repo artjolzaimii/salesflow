@@ -23,8 +23,9 @@ export const getPrincipal = cache(async (): Promise<Principal | null> => {
   await connection();
   const session = await auth();
   const userId = session?.user?.id;
-  if (!userId) return null;
-  return loadPrincipal(userId);
+  const sid = (session as { sid?: string } | null)?.sid;
+  if (!userId || !sid) return null;
+  return loadPrincipal(userId, sid);
 });
 
 /* ---------- pages (redirects) ---------- */

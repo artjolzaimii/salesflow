@@ -15,7 +15,7 @@ Browser ─► /api/assistant/* ─► services/assistant.ts (loop, limits, pers
 - **Request settings:**
   - Adaptive thinking (always on for this model), with `output_config.effort` = `medium` (`ASSISTANT_EFFORT`).
   - `tool_choice: auto`.
-  - The server-side refusal fallback (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`): if the model declines on policy grounds, the API retries on a fallback model in the same call. Turn it off with `ASSISTANT_FALLBACKS=off`.
+  - The server-side refusal fallback is **off** (Phase 6A). With `ASSISTANT_FALLBACKS=default` (an explicit approval), a policy refusal is retried by the API on another model in the same call (beta `server-side-fallback-2026-07-01`). It's off by default because it silently changes which model, at which price, answers financial questions.
 - **Provider abstraction:** `src/server/assistant/types.ts` defines provider-neutral messages and an `LlmProvider` interface. `providers/anthropic.ts` is the only file that knows the Anthropic API. Another provider means one new adapter; tools, the loop and the UI don't change.
 - **Why not a hosted agent:** the loop is deliberately our own small, bounded one on the Messages API. The tools must run inside SalesFlow against its database with the user's permissions, and conversations must live in SalesFlow's own tables.
 
@@ -28,7 +28,7 @@ Set these on the server only (`.env`, or the host's secret store). Never use a `
 | `ANTHROPIC_API_KEY` | (none) | **Required** to enable the assistant. Without it the screen says the assistant isn't configured and `POST …/messages` answers 503 `ASSISTANT_NOT_CONFIGURED`. |
 | `ASSISTANT_MODEL` | `claude-opus-5-5` | Claude model ID. |
 | `ASSISTANT_EFFORT` | `medium` | `low`/`medium`/`high`/`xhigh`/`max`; anything else omits the parameter. |
-| `ASSISTANT_FALLBACKS` | `default` | `off` disables the server-side refusal fallback. |
+| `ASSISTANT_FALLBACKS` | `off` | `default` enables the server-side refusal fallback (needs explicit approval). |
 | `ASSISTANT_MAX_OUTPUT_TOKENS` | 8000 | Per model call (includes thinking). |
 | `ASSISTANT_MAX_ROUNDS` | 6 | Model calls per question. |
 | `ASSISTANT_MAX_TOOL_CALLS` | 8 | Tool executions per question; later calls get an error result telling the model to answer with what it has. |
@@ -39,6 +39,8 @@ Set these on the server only (`.env`, or the host's secret store). Never use a `
 | `ASSISTANT_CONTEXT_MESSAGES` / `ASSISTANT_CONTEXT_CHARS` | 20 / 24000 | Earlier turns replayed as context (text only; tool data is re-fetched, never replayed). |
 | `ASSISTANT_MAX_INPUT_CHARS` | 2000 | Question length. |
 | `ASSISTANT_REQUESTS_PER_HOUR` | 30 | Questions per user per rolling hour, counted in the database (works across server instances). |
+| `ASSISTANT_MAX_CONCURRENT` | 10 | Questions in progress at once, across all users and instances. One per user is always enforced. |
+| `ASSISTANT_DAILY_USD_PER_USER` / `ASSISTANT_DAILY_USD_TOTAL` | 5 / 50 | Estimated model spend over a rolling 24 hours, from the usage stored with each answer; unknown models are costed at the highest listed price. |
 | `ASSISTANT_PROVIDER` | `anthropic` | `scripted` = the deterministic offline provider used by the automated tests. It is labelled on screen and never used in production. |
 
 ## Tools
@@ -52,6 +54,7 @@ All tools are read-only. Each one validates its arguments with Zod (strict: unkn
 | `get_top_customers`, `get_top_products`, `get_sales_by_representative` | `reports.salesBreakdown` | ≤ 20 rows; representative = the one on the order |
 | `get_outstanding_invoices`, `get_overdue_invoices` | `reports.receivablesReport` | As of today; ≤ 50 rows plus aging |
 | `get_payment_collections` | `reports.collectionsReport` | By payment date; grouped by date, method, currency or customer |
+| `compare_invoiced_sales` | `reports.compareInvoicedSales` | Two date ranges and the exact change (amount and percent), computed with Decimal on the server |
 | `get_customer_details` | `customers.listCustomers` / `getCustomer` | By id or search; notes truncated to 300 characters |
 | `get_order_details` | `orders.listOrders` / `getOrder` | By order number; ≤ 30 lines |
 | `get_invoice_details` | `invoices.listInvoices` / `getInvoice` | By invoice number; ≤ 20 payments |
@@ -66,6 +69,8 @@ The financial definitions, date rules and currency rules are the reporting ones 
   - Stored text (names, notes, references) reaches the model only inside JSON tool results.
   - The prompt says that text is data, never instructions, and free text is truncated.
   - Because the tools are read-only and scoped, even an obeyed injection can't reach more than the user could see on screen.
+- **Admission is enforced in the database** under an advisory lock, so it holds across server instances: one question at a time per user, the global concurrency cap, the hourly limit and the 24-hour spend caps.
+- **Deterministic calculations:** the model is told never to do arithmetic on financial figures. Period comparisons come from `compare_invoiced_sales`, which computes differences and percentages with Decimal on the server. Every other figure is a value the reporting service returned.
 - **Grounding:**
   - The prompt requires every figure to come from a tool result.
   - After each answer, money-like amounts are checked against that question's tool results. Any that weren't returned are stored (`unverifiedFigures`) and shown under the answer ("not returned by SalesFlow lookups").
@@ -87,7 +92,7 @@ The financial definitions, date rules and currency rules are the reporting ones 
 ## Cost
 
 - **Prices:** Claude Opus 5.5 is $4 per million input tokens and $20 per million output tokens. Cache reads cost $0.20/M; cache writes are about 1.25× input. Each answer records its token usage and estimated cost in `AIMessage.toolMetadata`.
-- **Fixed part of every model call:** the system prompt plus 11 tool definitions, about 15,800 characters (≈ 4,000 tokens). It is marked for prompt caching; if it is below the model's minimum cacheable size it is billed at the normal input rate (≈ $0.016 per call).
+- **Fixed part of every model call:** the system prompt plus 12 tool definitions, about 15,800 characters (≈ 4,000 tokens). It is marked for prompt caching; if it is below the model's minimum cacheable size it is billed at the normal input rate (≈ $0.016 per call).
 - **Typical question:** two model calls (choose a tool, then answer) with one or two tool results and adaptive thinking at medium effort. About 8–15k input tokens and 0.5–2k output tokens, so **≈ $0.04–0.10**.
 - **Hard ceiling per question** (all limits hit): 6 calls × (~35k input + 8k output) ≈ **$1.80**.
 - **Per user:** ≤ 30 questions an hour by default, typically $1–3 an hour of active use.

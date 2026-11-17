@@ -45,6 +45,7 @@ describe("tools: validation and contract", () => {
   it("exposes only read-only, schema-described tools", () => {
     expect(TOOL_NAMES.sort()).toEqual(
       [
+        "compare_invoiced_sales",
         "get_customer_details",
         "get_dashboard_summary",
         "get_invoice_details",
@@ -219,6 +220,47 @@ describe("loop limits and failures", () => {
       expect(await errorCode(sendMessage(m, id, { content: "hello" }))).toBe("ASSISTANT_NOT_CONFIGURED");
     } finally {
       process.env.ASSISTANT_PROVIDER = before;
+    }
+  });
+});
+
+describe("Phase 6A: server-side computation and database-enforced admission", () => {
+  it("compares periods with exact server-side arithmetic", async () => {
+    const r = await tool(MANAGER, "compare_invoiced_sales", { periodA: { from: "2026-09-01", to: "2026-09-30" }, periodB: { from: "2026-10-01", to: "2026-10-31" } });
+    const d = data(r) as { periodA: { net: string }; periodB: { net: string; invoices: number }; change: { net: string; netPercent: string | null }; currency: string };
+    expect(d.currency).toBe("ALL");
+    expect(d.periodB.invoices).toBe(4); // the seeded October invoices
+    expect(d.change.net).toBe((Number(d.periodB.net) - Number(d.periodA.net)).toFixed(2));
+    expect(d.change.netPercent).toBe(Number(d.periodA.net) === 0 ? null : expect.any(String));
+    expect((await tool(MANAGER, "compare_invoiced_sales", { periodA: { from: "2026-10-31", to: "2026-10-01" }, periodB: { from: "2026-10-01", to: "2026-10-31" } })).error).toBe("INVALID_ARGUMENTS");
+    // A representative compares only their own scope.
+    const rep = data(await tool(REP_KORCE, "compare_invoiced_sales", { periodA: { from: "2026-09-01", to: "2026-09-30" }, periodB: { from: "2026-10-01", to: "2026-10-31" } })) as { periodB: { invoices: number } };
+    expect(rep.periodB.invoices).toBe(2);
+  });
+
+  it("an unanswered question blocks the same user on every instance (database check)", async () => {
+    const admin = await principalFor(ADMIN);
+    const { id } = await createConversation(admin, {});
+    // Simulate a question in progress on another server instance.
+    await db().aIMessage.create({ data: { conversationId: id, role: "USER", content: "in progress elsewhere" } });
+    expect(await errorCode(sendMessage(admin, id, { content: "second question" }))).toBe("ASSISTANT_BUSY");
+    await db().aIMessage.create({ data: { conversationId: id, role: "ASSISTANT", content: "done", toolMetadata: { status: "ok" } } });
+    expect((await sendMessage(admin, id, { content: "What were our invoiced sales this month?" })).assistantMessage.status).toBe("ok");
+  });
+
+  it("enforces the per-user daily spend cap from stored usage", async () => {
+    const admin = await principalFor(ADMIN);
+    const { id } = await createConversation(admin, {});
+    await db().aIMessage.create({ data: { conversationId: id, role: "ASSISTANT", content: "costly", toolMetadata: { status: "ok", estimatedCostUsd: 5.01 } } });
+    expect(await errorCode(sendMessage(admin, id, { content: "anything" }))).toBe("ASSISTANT_SPEND_LIMIT");
+    process.env.ASSISTANT_DAILY_USD_PER_USER = "100";
+    process.env.ASSISTANT_DAILY_USD_TOTAL = "100";
+    try {
+      expect((await sendMessage(admin, id, { content: "What were our invoiced sales this month?" })).assistantMessage.status).toBe("ok");
+    } finally {
+      delete process.env.ASSISTANT_DAILY_USD_PER_USER;
+      delete process.env.ASSISTANT_DAILY_USD_TOTAL;
+      await db().aIMessage.updateMany({ where: { conversationId: id, content: "costly" }, data: { createdAt: new Date(Date.now() - 2 * 86_400_000) } });
     }
   });
 });

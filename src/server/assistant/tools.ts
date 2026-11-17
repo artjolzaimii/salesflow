@@ -4,10 +4,13 @@ import { CURRENCY_CODES } from "@/lib/labels";
 import { MAX_CUSTOM_DAYS, PERIODS, daysInclusive } from "@/lib/report-period";
 import type { Principal } from "@/server/auth/principal";
 import { AppError } from "@/server/errors";
+import { logError } from "@/server/log";
 import { customerListQuery, getCustomer, listCustomers } from "@/server/services/customers";
 import { getInvoice, invoiceListQuery, listInvoices } from "@/server/services/invoices";
 import { getOrder, listOrders, orderListQuery } from "@/server/services/orders";
 import {
+  compareInvoicedSales,
+  compareQuery,
   collectionsQuery,
   collectionsReport,
   dashboardQuery,
@@ -196,6 +199,20 @@ const TOOLS = [
     }),
   ),
   define({
+    name: "compare_invoiced_sales",
+    description:
+      "Invoiced sales in two date ranges and the exact change between them (amount and percent), computed by SalesFlow. Use this for any comparison of periods instead of subtracting or dividing yourself.",
+    schema: z.strictObject({
+      periodA: z.strictObject({ from: z.iso.date(), to: z.iso.date() }).describe("Earlier or reference range, inclusive YYYY-MM-DD dates."),
+      periodB: z.strictObject({ from: z.iso.date(), to: z.iso.date() }).describe("Range compared against periodA."),
+      basis,
+    }),
+    async run(p, a) {
+      const r = await compareInvoicedSales(p, compareQuery.parse(a));
+      return { data: { ...r, note: "change = periodB − periodA; percent = change / periodA × 100 (null when periodA is zero)." }, records: [] };
+    },
+  }),
+  define({
     name: "get_payment_collections",
     description: "Payments received in a period (by payment date), converted at each invoice's stored rate, grouped by date bucket, method, currency or customer.",
     schema: periodArgs({ basis, groupBy: z.enum(["trend", "method", "currency", "customer"]).default("trend") }),
@@ -379,7 +396,7 @@ export async function runTool(p: Principal, name: string, input: unknown, opts: 
       return failure(name, e.code, msg);
     }
     if (e instanceof z.ZodError) return failure(name, "INVALID_ARGUMENTS", "Invalid arguments: " + e.issues.map((i) => i.message).join("; "));
-    console.error("[assistant] tool failed", name, e);
+    logError("assistant", e, { tool: name });
     return failure(name, "TOOL_FAILED", "The lookup failed. Try again or rephrase.");
   } finally {
     clearTimeout(timer);

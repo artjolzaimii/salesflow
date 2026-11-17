@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resetLoginThrottle, verifyCredentials } from "@/server/auth/credentials";
 import { loadPrincipal } from "@/server/auth/load-principal";
+import { createSession } from "@/server/auth/sessions";
 import { createCustomer } from "@/server/services/customers";
 import { createEmployee, employeeListQuery, getEmployee, listEmployees, reassignCustomers, updateEmployee } from "@/server/services/employees";
 import { ADMIN, db, errorCode, freshNipt, MANAGER, principalFor, REP_TIRANA } from "../support/fixtures";
@@ -47,12 +48,15 @@ describe("employees", () => {
     const c = await createCustomer(admin, customer(leaving.id));
     const order = await db().order.create({ data: { orderNumber: "T-EMP-" + Date.now(), customerId: c.id, salesRepId: leaving.id, currencyCode: "ALL", allPerUnit: "1" } });
 
+    const sid = await createSession(leaving.user!.id);
+    expect(await loadPrincipal(leaving.user!.id, sid)).not.toBeNull();
     expect(await errorCode(updateEmployee(admin, leaving.id, { isActive: false }))).toBe("EMPLOYEE_HAS_CUSTOMERS");
     const done = await updateEmployee(admin, leaving.id, { isActive: false, reassignCustomersTo: taking.id });
     expect(done.isActive).toBe(false);
     expect((await getEmployee(admin, taking.id)).assignedCustomers.map((x) => x.id)).toContain(c.id);
     expect((await db().order.findUniqueOrThrow({ where: { id: order.id } })).salesRepId).toBe(leaving.id); // history kept
-    expect(await loadPrincipal(done.user!.id)).toBeNull(); // sign-in blocked from the next request
+    expect(await loadPrincipal(done.user!.id, sid)).toBeNull(); // sign-in blocked from the next request
+    expect((await db().authSession.findUniqueOrThrow({ where: { id: sid } })).revokedAt).toBeInstanceOf(Date); // and its sessions revoked
     expect(await errorCode(updateEmployee(admin, taking.id, { isActive: false, reassignCustomersTo: leaving.id }))).toBe("VALIDATION_FAILED"); // inactive target
   });
 

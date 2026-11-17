@@ -5,6 +5,7 @@ import { businessDate } from "@/lib/business-date";
 import { assertPermission, type Principal } from "@/server/auth/principal";
 import { getDb } from "@/server/db";
 import { AppError, conflict, notFound } from "@/server/errors";
+import { logError } from "@/server/log";
 import { paged } from "@/server/query";
 import { assistantConfig, PRICES, type AssistantConfig } from "@/server/assistant/config";
 import { linkedRecords, unverifiedFigures } from "@/server/assistant/grounding";
@@ -119,7 +120,8 @@ export async function getConversation(p: Principal, id: string) {
 
 /* ------------------------------------------------------------ the loop */
 
-const inFlight = new Set<string>();
+/** pg_advisory_xact_lock key serializing assistant admission (short: checks + one insert). */
+const ADMISSION_LOCK = 0x5f0002;
 
 /** Earlier turns for context: user questions and successful answers only (no tool data), newest within budget. */
 async function history(conversationId: string, cfg: AssistantConfig): Promise<ChatMessage[]> {
@@ -151,9 +153,10 @@ async function history(conversationId: string, cfg: AssistantConfig): Promise<Ch
   return merged;
 }
 
-function costUsd(model: string, u: Usage): number | null {
-  const price = PRICES[model];
-  if (!price) return null;
+const MAX_PRICE = Object.values(PRICES).reduce((m, p) => (p.output > m.output ? p : m));
+
+function costUsd(model: string, u: Usage): number {
+  const price = PRICES[model] ?? MAX_PRICE;
   const usd = (u.inputTokens * price.input + u.outputTokens * price.output + u.cacheReadTokens * price.cacheRead + u.cacheWriteTokens * price.cacheWrite) / 1e6;
   return Math.round(usd * 1e6) / 1e6;
 }
@@ -161,7 +164,8 @@ function costUsd(model: string, u: Usage): number | null {
 /**
  * Answers one question. Bounded by: maxRounds model calls, maxToolCalls tool
  * executions, a per-tool timeout, a whole-request timeout, result-size limits,
- * an hourly per-user limit and one question at a time per user.
+ * and the admission checks below (all enforced in the database, so they hold
+ * across server instances).
  */
 export async function sendMessage(p: Principal, conversationId: string, raw: z.output<typeof messageSchema>) {
   assertPermission(p, "assistant.use");
@@ -177,21 +181,13 @@ export async function sendMessage(p: Principal, conversationId: string, raw: z.o
   const provider = providerFor(cfg);
   if (!provider) throw new AppError(503, "ASSISTANT_NOT_CONFIGURED", "The AI assistant isn't configured on this server. An administrator must set ANTHROPIC_API_KEY.");
 
-  const since = new Date(Date.now() - 3_600_000);
-  const recent = await db.aIMessage.count({ where: { role: "USER", createdAt: { gte: since }, conversation: { userId: p.userId } } });
-  if (recent >= cfg.requestsPerHour) {
-    throw new AppError(429, "ASSISTANT_RATE_LIMITED", `You've reached ${cfg.requestsPerHour} questions in the last hour. Try again later.`);
-  }
-  if (inFlight.has(p.userId)) throw conflict("ASSISTANT_BUSY", "Wait for the current answer before asking another question.");
-  inFlight.add(p.userId);
-
   // Strictly increasing timestamps keep message order stable within one request.
   let clock = Date.now();
   const stamp = () => new Date(Math.max(Date.now(), ++clock));
 
-  try {
-    const context = await history(conversation.id, cfg);
-    const userMessage = await db.aIMessage.create({ data: { conversationId: conversation.id, role: "USER", content, createdAt: stamp() } });
+  const context = await history(conversation.id, cfg);
+  const userMessage = await admit(p, conversation.id, content, cfg, stamp);
+  {
     if (!conversation.title || conversation.title === DEFAULT_TITLE) {
       await db.aIConversation.update({ where: { id: conversation.id }, data: { title: content.slice(0, 80) } });
     }
@@ -277,7 +273,7 @@ export async function sendMessage(p: Principal, conversationId: string, raw: z.o
         errorCode = e.kind === "timeout" ? "ASSISTANT_TIMEOUT" : "ASSISTANT_UNAVAILABLE";
         answer = e.kind === "timeout" ? "The assistant took too long to answer. Try again, or ask a narrower question." : `${e.message} Your question was saved; try again shortly.`;
       } else {
-        console.error("[assistant] loop failed", e);
+        logError("assistant", e, { stage: "loop" });
         errorCode = "ASSISTANT_UNAVAILABLE";
         answer = "Something went wrong while answering. Try again shortly.";
       }
@@ -312,7 +308,51 @@ export async function sendMessage(p: Principal, conversationId: string, raw: z.o
       throw new AppError(errorCode === "ASSISTANT_TIMEOUT" ? 504 : 503, errorCode, answer, { assistantMessageId: assistantMessage.id });
     }
     return dto;
-  } finally {
-    inFlight.delete(p.userId);
   }
+}
+
+/**
+ * Admission, in one short transaction under an advisory lock (all instances):
+ * - one question at a time per user (409 ASSISTANT_BUSY),
+ * - at most maxConcurrent questions in progress overall (503 ASSISTANT_BUSY),
+ * - requestsPerHour questions per user per rolling hour (429),
+ * - estimated spend over 24 h below the per-user and total caps (429 ASSISTANT_SPEND_LIMIT).
+ * "In progress" = a question with no answer yet, younger than the request timeout,
+ * so a crashed request can block its user for at most that long.
+ */
+async function admit(p: Principal, conversationId: string, content: string, cfg: AssistantConfig, stamp: () => Date) {
+  return getDb().$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${ADMISSION_LOCK}::bigint)`;
+    const pendingSince = new Date(Date.now() - cfg.requestTimeoutMs - 5_000);
+    const recentQuestions = await tx.aIMessage.findMany({
+      where: { role: "USER", createdAt: { gt: pendingSince } },
+      select: { conversationId: true, createdAt: true, conversation: { select: { userId: true } } },
+    });
+    const pending = [];
+    for (const q of recentQuestions) {
+      // gte: an answer stamped in the same millisecond (e.g. seeded or imported rows) still counts.
+      const answered = await tx.aIMessage.count({ where: { conversationId: q.conversationId, role: "ASSISTANT", createdAt: { gte: q.createdAt } } });
+      if (!answered) pending.push(q);
+    }
+    if (pending.some((q) => q.conversation.userId === p.userId)) throw conflict("ASSISTANT_BUSY", "Wait for the current answer before asking another question.");
+    if (pending.length >= cfg.maxConcurrent) throw new AppError(503, "ASSISTANT_BUSY", "The assistant is busy with other questions. Try again in a minute.");
+
+    const hourly = await tx.aIMessage.count({ where: { role: "USER", createdAt: { gte: new Date(Date.now() - 3_600_000) }, conversation: { userId: p.userId } } });
+    if (hourly >= cfg.requestsPerHour) {
+      throw new AppError(429, "ASSISTANT_RATE_LIMITED", `You've reached ${cfg.requestsPerHour} questions in the last hour. Try again later.`);
+    }
+
+    const [spend] = await tx.$queryRaw<{ mine: Prisma.Decimal | null; total: Prisma.Decimal | null }[]>`
+      SELECT SUM((m.tool_metadata->>'estimatedCostUsd')::numeric) FILTER (WHERE c.user_id = ${p.userId}::uuid) AS mine,
+             SUM((m.tool_metadata->>'estimatedCostUsd')::numeric) AS total
+      FROM ai_messages m JOIN ai_conversations c ON c.id = m.conversation_id
+      WHERE m.role = 'ASSISTANT' AND m.created_at > (now() AT TIME ZONE 'UTC') - interval '24 hours'`;
+    if (Number(spend?.mine ?? 0) >= cfg.dailyUsdPerUser) {
+      throw new AppError(429, "ASSISTANT_SPEND_LIMIT", "You've reached today's assistant usage limit. Try again tomorrow or ask an administrator.");
+    }
+    if (Number(spend?.total ?? 0) >= cfg.dailyUsdTotal) {
+      throw new AppError(429, "ASSISTANT_SPEND_LIMIT", "The assistant has reached today's usage limit for the organisation. Try again tomorrow.");
+    }
+    return tx.aIMessage.create({ data: { conversationId, role: "USER", content, createdAt: stamp() } });
+  });
 }

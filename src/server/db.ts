@@ -22,6 +22,27 @@ export function getDb(): PrismaClient {
   if (globalForPrisma.salesflowDb) return globalForPrisma.salesflowDb;
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set. Copy .env.example to .env for local development.");
-  globalForPrisma.salesflowDb = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  globalForPrisma.salesflowDb = new PrismaClient({ adapter: new PrismaPg(poolConfig(connectionString)) });
   return globalForPrisma.salesflowDb;
+}
+
+const envInt = (name: string, fallback: number, min: number, max: number) => {
+  const n = Number(process.env[name]);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
+};
+
+/**
+ * Pool limits (docs/security.md): a bounded pool per instance, a connect
+ * timeout so a stuck database fails fast, and a per-statement timeout so no
+ * single query (for example a large report) can hold a connection indefinitely.
+ */
+function poolConfig(connectionString: string) {
+  return {
+    connectionString,
+    max: envInt("DATABASE_POOL_MAX", 10, 1, 200),
+    connectionTimeoutMillis: envInt("DATABASE_CONNECT_TIMEOUT_MS", 10_000, 500, 120_000),
+    idleTimeoutMillis: 30_000,
+    statement_timeout: envInt("DATABASE_STATEMENT_TIMEOUT_MS", 30_000, 1_000, 600_000),
+    application_name: "salesflow",
+  };
 }

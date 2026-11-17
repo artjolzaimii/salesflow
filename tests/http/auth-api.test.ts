@@ -29,10 +29,17 @@ const get = (path: string, cookie?: string) => fetch(base + path, { headers: coo
 const post = (path: string, body: unknown, cookie?: string, headers: Record<string, string> = {}) =>
   fetch(base + path, { method: "POST", redirect: "manual", headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}), ...headers }, body: JSON.stringify(body) });
 
-/** A session cookie minted with the server's secret (to test expiry and forgery). */
-async function mintCookie(email: string, maxAge: number) {
+/**
+ * A session cookie minted with the server's secret (to test expiry and forgery),
+ * bound to a real server-side session row unless `sid` is given explicitly.
+ */
+async function mintCookie(email: string, maxAge: number, sid?: string | null) {
   const u = await db().user.findUniqueOrThrow({ where: { email } });
-  const token = await encode({ token: { sub: u.id, email }, secret: TEST_AUTH_SECRET, salt: COOKIE, maxAge });
+  const sessionId =
+    sid === undefined
+      ? (await db().authSession.create({ data: { id: crypto.randomUUID(), userId: u.id, expiresAt: new Date(Date.now() + 3600_000) } })).id
+      : sid;
+  const token = await encode({ token: { sub: u.id, email, ...(sessionId ? { sid: sessionId } : {}) }, secret: TEST_AUTH_SECRET, salt: COOKIE, maxAge });
   return `${COOKIE}=${token}`;
 }
 
@@ -99,6 +106,20 @@ describe.skipIf(!base)("authentication over HTTP", () => {
     expect((await get("/api/me", `${COOKIE}=${otherSecret}`)).status).toBe(401);
   });
 
+  it("refuses a correctly signed token without a live server-side session", async () => {
+    const u = await db().user.findUniqueOrThrow({ where: { email: MANAGER } });
+    // Valid signature and expiry, but no session id: e.g. minted by someone holding AUTH_SECRET.
+    expect((await get("/api/me", await mintCookie(MANAGER, 60, null))).status).toBe(401);
+    expect((await get("/api/me", await mintCookie(MANAGER, 60, crypto.randomUUID()))).status).toBe(401); // unknown session
+    const expired = await db().authSession.create({ data: { id: crypto.randomUUID(), userId: u.id, createdAt: new Date(Date.now() - 9 * 3600_000), expiresAt: new Date(Date.now() - 3600_000) } });
+    expect((await get("/api/me", await mintCookie(MANAGER, 60, expired.id))).status).toBe(401); // absolute lifetime passed
+    const revoked = await db().authSession.create({ data: { id: crypto.randomUUID(), userId: u.id, expiresAt: new Date(Date.now() + 3600_000), revokedAt: new Date() } });
+    expect((await get("/api/me", await mintCookie(MANAGER, 60, revoked.id))).status).toBe(401);
+    const other = await db().user.findUniqueOrThrow({ where: { email: REP_TIRANA } });
+    const foreign = await db().authSession.create({ data: { id: crypto.randomUUID(), userId: other.id, expiresAt: new Date(Date.now() + 3600_000) } });
+    expect((await get("/api/me", await mintCookie(MANAGER, 60, foreign.id))).status).toBe(401); // someone else's session id
+  });
+
   it("signs out: the session cookie is cleared", async () => {
     const cookie = (await signIn(MANAGER, DEMO_PASSWORD))!;
     const csrf = await fetch(`${base}/api/auth/csrf`, { headers: { cookie } });
@@ -112,6 +133,9 @@ describe.skipIf(!base)("authentication over HTTP", () => {
     });
     const cleared = res.headers.getSetCookie().find((c) => c.startsWith(COOKIE + "="));
     expect(cleared).toMatch(new RegExp(`^${COOKIE}=;|Max-Age=0|Expires=Thu, 01 Jan 1970`, "i"));
+    // Regression (Phase 6A): the session is revoked on the server, so a copy of the old cookie no longer works.
+    expect((await get("/api/me", cookie)).status).toBe(401);
+    expect((await get("/api/me", manager)).status).toBe(200); // other sessions of the same user are unaffected
   });
 
   it("has no self-registration endpoint", async () => {

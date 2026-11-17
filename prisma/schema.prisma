@@ -81,6 +81,7 @@ model User {
   conversations     AIConversation[]
   cancelledInvoices Invoice[]        @relation("InvoiceCancelledBy")
   recordedPayments  Payment[]        @relation("PaymentRecordedBy")
+  sessions          AuthSession[]
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
@@ -347,6 +348,32 @@ model Payment {
   @@index([invoiceId, paymentDate])
   @@index([paymentDate])
   @@map("payments")
+}
+
+/// Server-side session registry (Phase 6A). The Auth.js JWT carries `id`; each request
+/// requires the row to be unrevoked and unexpired, so sign-out and deactivation take effect at once.
+model AuthSession {
+  id        String    @id @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+/// Failed sign-in attempts shared by all server instances; key = SHA-256 of "email:<address>".
+model AuthLoginThrottle {
+  key             String    @id @db.VarChar(64)
+  failures        Int
+  windowStartedAt DateTime  @map("window_started_at")
+  lockedUntil     DateTime? @map("locked_until")
+
+  @@index([windowStartedAt])
+  @@map("auth_login_throttle")
 }
 
 model AIConversation {

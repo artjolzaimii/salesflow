@@ -650,3 +650,37 @@ async function recentActivity(p: Principal, today: string) {
   };
 }
 
+
+/* ---------------------------------------------------------- comparisons */
+
+const rangeShape = z
+  .object({ from: z.iso.date(), to: z.iso.date() })
+  .refine((r) => r.from <= r.to, { message: "to is before from.", path: ["to"] })
+  .refine((r) => r.from > r.to || daysInclusive(r.from, r.to) <= MAX_CUSTOM_DAYS, { message: "Range longer than 10 years.", path: ["from"] });
+
+export const compareQuery = z.object({ periodA: rangeShape, periodB: rangeShape, basis: z.enum(REPORT_BASES).default("ALL_EQ") });
+
+/**
+ * Invoiced sales in two periods and the exact difference, computed here with
+ * Decimal (never by the browser or the language model): change = B − A, and
+ * percentage = (B − A) / A × 100, rounded half-up to 2 decimals (null when A is 0).
+ */
+export async function compareInvoicedSales(p: Principal, q: z.output<typeof compareQuery>) {
+  assertPermission(p, "reports.view");
+  const [a, b] = await Promise.all([invoicedSales(p, q.periodA.from, q.periodA.to, q.basis), invoicedSales(p, q.periodB.from, q.periodB.to, q.basis)]);
+  const diff = (x: string, y: string) => D(y).minus(x).toFixed(2);
+  const pct = (x: string, y: string) => (D(x).isZero() ? null : D(y).minus(x).div(x).mul(100).toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP).toFixed(2));
+  return {
+    basis: q.basis,
+    currency: reportCurrency(q.basis),
+    periodA: { ...q.periodA, ...a },
+    periodB: { ...q.periodB, ...b },
+    change: {
+      net: diff(a.net, b.net),
+      gross: diff(a.gross, b.gross),
+      invoices: b.invoices - a.invoices,
+      netPercent: pct(a.net, b.net),
+      grossPercent: pct(a.gross, b.gross),
+    },
+  };
+}

@@ -3,15 +3,19 @@ import { getDb } from "@/server/db";
 import type { Principal } from "./principal";
 
 /**
- * Loads the caller from the database. Returns null for an unknown user, a
- * disabled user or a disabled employee record, so those sessions stop working
- * on the next request.
+ * Loads the caller from the database in one query. Returns null unless the
+ * session row exists for this user, is not revoked and has not expired, and the
+ * user and their employee record are active. So sign-out, deactivation and the
+ * absolute session lifetime all apply on the next request.
  */
-export async function loadPrincipal(userId: string): Promise<Principal | null> {
-  const user = await getDb().user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, role: true, isActive: true, employee: { select: { id: true, isActive: true, firstName: true, lastName: true } } },
+export async function loadPrincipal(userId: string, sessionId: string): Promise<Principal | null> {
+  const session = await getDb().authSession.findFirst({
+    where: { id: sessionId, userId, revokedAt: null, expiresAt: { gt: new Date() } },
+    select: {
+      user: { select: { id: true, email: true, role: true, isActive: true, employee: { select: { id: true, isActive: true, firstName: true, lastName: true } } } },
+    },
   });
+  const user = session?.user;
   if (!user || !user.isActive || (user.employee && !user.employee.isActive)) return null;
   return {
     userId: user.id,

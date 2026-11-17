@@ -10,6 +10,7 @@ Sales management frontend for wholesale and distribution (customers, orders, inv
 - **Phase 5D** connected invoices and payments: manual issuance from confirmed orders with internal sequential numbers (`INV-2026-000005`, not fiscalized), cancellation with reason, replacement invoices, derived payment status (unpaid, partial, paid, overdue, cancelled), payment recording with overpayment, currency and precision checks and idempotent retries ([docs/api.md](docs/api.md#invoices)).
 - **Phase 5E** connected the dashboard and reports to PostgreSQL through one reporting service (invoiced sales, collections, receivables, overdue, pipeline; ALL at stored rates; Today/Week/Month/Year/Custom periods), and added payment attribution and invoice billing-address snapshots ([docs/reporting.md](docs/reporting.md)).
 - **Phase 5F** connected the AI assistant: Claude (official Anthropic SDK, server-side) with read-only, permission-checked tools over the reporting and record services, private persisted conversations, and request, tool, time and cost limits ([docs/assistant.md](docs/assistant.md)). It needs `ANTHROPIC_API_KEY`; without it the screen says it isn't configured.
+- **Phase 6A** security audit: server-side session revocation, a shared login throttle, security headers, request limits, safer logging, database-enforced assistant limits and server-computed comparisons ([docs/security.md](docs/security.md)).
 - **No preview data remains:** every screen reads the database.
 
 ## Run

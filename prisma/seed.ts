@@ -17,12 +17,27 @@ const calc = (qty: string, price: string, discount: string, vat: string) => {
 
 // DEVELOPMENT DATA ONLY. Fictional companies and four demo logins that share one
 // password (SEED_DEMO_PASSWORD, see .env.example). Never run against production.
-const DEV_DEFAULT_PASSWORD = 'ChangeMe-LocalDemo-2026!';
+// No built-in fallback password: the demo password must come from the environment,
+// so a seed run by mistake never creates accounts with a password published in this repository.
+function demoPassword(): string {
+  const pw = process.env.SEED_DEMO_PASSWORD ?? '';
+  if (pw.length < 12) throw new Error('Set SEED_DEMO_PASSWORD (at least 12 characters) to seed the demo accounts.');
+  return pw;
+}
+
+/** The seed only targets a local database unless SEED_ALLOW_REMOTE=true is set explicitly. */
+function assertLocalDatabase() {
+  const host = (() => { try { return new URL(process.env.DATABASE_URL ?? '').hostname; } catch { return ''; } })();
+  if (!['localhost', '127.0.0.1', '::1', '[::1]'].includes(host) && process.env.SEED_ALLOW_REMOTE !== 'true') {
+    throw new Error(`Refusing to seed demo data into a non-local database (${host || 'unknown host'}). Set SEED_ALLOW_REMOTE=true only for a disposable environment.`);
+  }
+}
 
 async function main() {
   if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed demo accounts with NODE_ENV=production.');
   // Seed is repeatable: use fixed natural keys and skip previously created orders.
-  const pw = await hash(process.env.SEED_DEMO_PASSWORD || DEV_DEFAULT_PASSWORD, 12);
+  assertLocalDatabase();
+  const pw = await hash(demoPassword(), 12);
   const people: { email: string; role: UserRole; first: string; last: string }[] = [
     { email: 'admin@salesflow.test', role: 'ADMIN', first: 'Arben', last: 'Dervishi' },
     { email: 'manager@salesflow.test', role: 'SALES_MANAGER', first: 'Elira', last: 'Kola' },
