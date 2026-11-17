@@ -1,18 +1,12 @@
 "use client";
 
 /**
- * Preview-mode application store.
- *
- * Holds the in-memory copy of the fictional dataset plus the UI state the
- * prototype kept globally (drawers, dialogs, toast, preview
- * controls). The fixtures only feed the screens still in preview (dashboard,
- * reports, assistant); nothing is persisted and reloading restores them.
- * Every business mutation goes through the database APIs.
+ * Client UI store: the global UI state the prototype kept (drawers, dialogs,
+ * confirmation, toast, sidebar). It holds no business data: every screen reads
+ * and writes through the database APIs (src/services/client). The file keeps its
+ * historical name to avoid churn in imports.
  */
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { buildFixtureConversations, ASSISTANT_OFFLINE_REPLY } from "@/mocks/assistant";
-import { buildPreviewDataset, PREVIEW_TODAY } from "@/mocks/fixtures";
-import type { Conversation, SalesDataset } from "@/lib/types";
 
 export interface ConfirmRequest {
   title: string;
@@ -22,12 +16,6 @@ export interface ConfirmRequest {
 }
 
 export interface PreviewState {
-  today: string;
-  data: SalesDataset;
-  conversations: Conversation[];
-  activeConversationId: string;
-  assistantPending: boolean;
-  assistantInput: string;
 
 
   sidebarCollapsed: boolean;
@@ -45,14 +33,7 @@ export interface PreviewState {
 }
 
 function initialState(): PreviewState {
-  const data = buildPreviewDataset(PREVIEW_TODAY);
   return {
-    today: PREVIEW_TODAY,
-    data,
-    conversations: buildFixtureConversations(data),
-    activeConversationId: "c1",
-    assistantPending: false,
-    assistantInput: "",
     sidebarCollapsed: false,
     mobileNavOpen: false,
     toast: null,
@@ -70,7 +51,6 @@ function createPreviewStore() {
   let state = initialState();
   const listeners = new Set<() => void>();
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
-  let assistantTimer: ReturnType<typeof setTimeout> | undefined;
 
   const get = () => state;
   const set = (patch: Patch) => {
@@ -118,48 +98,6 @@ function createPreviewStore() {
     /* ----- products (dialog only; data lives in the database, see product-dialog.tsx) ----- */
     openProduct: (productId = "") => set({ productDialog: { productId } }),
     closeProduct: () => set({ productDialog: null }),
-
-    /* ----- assistant ----- */
-    setAssistantInput: (assistantInput: string) => set({ assistantInput }),
-    selectConversation: (id: string) => set({ activeConversationId: id }),
-    newConversation: () =>
-      set((s) => {
-        const id = "c" + Date.now();
-        return {
-          activeConversationId: id,
-          assistantInput: "",
-          conversations: [{ id, title: "New conversation", updatedLabel: "Just now", fixture: false, messages: [] }, ...s.conversations],
-        };
-      }),
-    sendMessage: () => {
-      const s = get();
-      const text = s.assistantInput.trim();
-      if (!text || s.assistantPending) return;
-      let conversations = s.conversations;
-      let active = s.activeConversationId;
-      if (!conversations.some((c) => c.id === active)) {
-        active = "c" + Date.now();
-        conversations = [{ id: active, title: "New conversation", updatedLabel: "Just now", fixture: false, messages: [] }, ...conversations];
-      }
-      conversations = conversations.map((c) =>
-        c.id === active
-          ? { ...c, title: c.messages.length ? c.title : text.slice(0, 52), updatedLabel: "Just now", fixture: false, messages: [...c.messages, { role: "user", text }] }
-          : c,
-      );
-      set({ conversations, activeConversationId: active, assistantInput: "", assistantPending: true });
-      clearTimeout(assistantTimer);
-      // No assistant backend exists in preview mode; reply with an explicit "not connected" notice.
-      assistantTimer = setTimeout(
-        () =>
-          set((st) => ({
-            assistantPending: false,
-            conversations: st.conversations.map((c) =>
-              c.id === active ? { ...c, messages: [...c.messages, { role: "error", text: ASSISTANT_OFFLINE_REPLY }] } : c,
-            ),
-          })),
-        1100,
-      );
-    },
   };
 
   return { get, set, subscribe, actions };

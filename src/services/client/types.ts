@@ -5,6 +5,7 @@ import type { currentRates, listRates, rateForOrderDate } from "@/server/service
 import type { getOrder, listOrders, quoteOrder } from "@/server/services/orders";
 import type { getInvoice, listInvoices } from "@/server/services/invoices";
 import type { getPayment, listPayments } from "@/server/services/payments";
+import type { assistantStatus, createConversation, getConversation, listConversations, sendMessage } from "@/server/services/assistant";
 import type { collectionsReport, dashboardSummary, receivablesReport, salesBreakdown } from "@/server/services/reports";
 
 /**
@@ -53,3 +54,11 @@ export type DashboardDto = Out<typeof dashboardSummary>;
 export type SalesReportDto = Out<typeof salesBreakdown>;
 export type CollectionsReportDto = Out<typeof collectionsReport>;
 export type ReceivablesReportDto = Out<typeof receivablesReport>;
+
+export type AssistantStatusDto = Json<ReturnType<typeof assistantStatus>>;
+export type ConversationPage = Out<typeof listConversations>;
+export type ConversationRow = ConversationPage["items"][number];
+export type CreatedConversationDto = Out<typeof createConversation>;
+export type ConversationDto = Out<typeof getConversation>;
+export type AssistantMessageDto = ConversationDto["messages"][number];
+export type SendMessageDto = Out<typeof sendMessage>;

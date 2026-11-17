@@ -75,7 +75,7 @@ The frontend models (`src/lib/types.ts`) were written before the schema was avai
 | Payment number | `PAY-2026-0190` | none (UUID + `reference`) | See IDs. |
 | Assistant | Roles user / assistant / error; structured `table` and `kpis`; `fixture` flag | Roles SYSTEM / USER / ASSISTANT / TOOL; `content` text + `toolMetadata` JSON | Store tables and KPIs in `toolMetadata`. An "error" reply is not a stored role; render it client-side or as ASSISTANT with metadata. |
 | Dates | ISO date strings | `orderDate` is a timestamp; invoice and payment dates are `DATE` | Format order timestamps in the business time zone. |
-| Data | Preview fixtures (14 customers, 10 products, 16 orders) | Seed (5 customers, 6 products, 4 orders, different names) | The two sets diverge on purpose. The UI keeps fixtures until the API phase. |
+| Data | Preview fixtures (14 customers, 10 products, 16 orders) | Seed (5 customers, 6 products, 4 orders, different names) | The preview fixtures were removed in Phase 5F; the UI reads only the database. |
 
 ## Phase 5A changes (migration `20261117090000_business_rules_invoice_replacement`)
 

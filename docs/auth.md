@@ -1,6 +1,6 @@
 # Authentication, authorization and business rules (Phase 5A)
 
-When this phase shipped, the business screens still ran on preview fixtures (customers, catalogue and orders are live since 5B/5C). Sign-in, sessions, roles, page gates and the business-rule endpoints below are real and run against PostgreSQL.
+When this phase shipped, the business screens still ran on preview fixtures; since Phase 5F every screen reads the database. Sign-in, sessions, roles, page gates and the business-rule endpoints below are real and run against PostgreSQL.
 
 ## Authentication
 

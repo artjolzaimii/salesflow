@@ -1,4 +1,4 @@
-# SalesFlow API (Phase 5A–5E)
+# SalesFlow API (Phase 5A–5F)
 
 Request path: browser → Route Handler (`src/app/api/**`) → service (`src/server/services/*`) → Prisma → PostgreSQL. React components never contain business rules; they call these routes through `src/services/client/` (fetch wrapper and a small query cache).
 
@@ -131,6 +131,18 @@ Period parameters (dashboard, sales, collections): `period=today|week|month|year
 | `GET /api/reports/sales` | `groupBy=trend\|customer\|product\|category\|rep\|currency` (revenue trend and customer, product, category and representative performance), `basis=ALL_EQ\|ALL\|EUR\|USD`, `page`, `pageSize` ≤ 100. Summary: invoiced (net, VAT, gross), collected, pipeline, outstanding, overdue. |
 | `GET /api/reports/collections` | Payments by payment date: `groupBy=trend\|method\|currency\|customer`, `basis`, paging. Converted at each invoice's rate. |
 | `GET /api/reports/receivables` | Open invoices as of today with days overdue, representative and ALL equivalent; aging buckets. `overdueOnly`, `basis`, `currency`, `customerId`, paging. |
+
+### AI assistant
+
+Permission `assistant.use` (all roles). Conversations belong to the signed-in user; anyone else's is 404. Details, limits and costs: [assistant.md](assistant.md).
+
+| Method & path | Notes |
+|---|---|
+| `GET /api/assistant` | `{ configured, provider, offlineTestProvider, maxInputChars, requestsPerHour }`; never any credential. |
+| `GET /api/assistant/conversations` | The caller's conversations, most recently updated first (`page`, `pageSize` ≤ 100). |
+| `POST /api/assistant/conversations` | `{ title? }`; 201. |
+| `GET /api/assistant/conversations/:id` | Conversation with user and assistant messages in order; assistant messages carry `status`, `tools`, `records` (links), `unverifiedFigures`. |
+| `POST /api/assistant/conversations/:id/messages` | `{ content }` (strict, ≤ 2000 chars). Runs the bounded tool loop; 200 `{ userMessage, assistantMessage }`. 429 `ASSISTANT_RATE_LIMITED`, 409 `ASSISTANT_BUSY`, 503 `ASSISTANT_NOT_CONFIGURED` / `ASSISTANT_UNAVAILABLE`, 504 `ASSISTANT_TIMEOUT` (question and error note saved). |
 
 ### Phase 5A routes
 

@@ -20,6 +20,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 120_000,
-    env: { DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET },
+    // The assistant never calls a paid API in tests: the offline scripted provider, and no key.
+    env: { DATABASE_URL: TEST_DATABASE_URL, AUTH_SECRET: TEST_AUTH_SECRET, ASSISTANT_PROVIDER: "scripted", ANTHROPIC_API_KEY: "" },
   },
 });

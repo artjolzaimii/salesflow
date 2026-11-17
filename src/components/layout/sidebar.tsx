@@ -69,10 +69,6 @@ export function Sidebar({ section }: { section: SectionKey }) {
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-divider p-[10px]">
-        <div className={`px-1 text-[11px] leading-[1.4] text-neutral-700 ${label}`}>
-          <span className="tag tag-accent mb-1">Partly preview</span>
-          <div>All business data is live from the database. The AI assistant still shows sample transcripts.</div>
-        </div>
         <button
           type="button"
           className={`btn btn-ghost font-body font-normal text-neutral-700 max-nav:hidden ${centerWhenCollapsed} justify-start`}

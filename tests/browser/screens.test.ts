@@ -27,7 +27,10 @@ async function signedIn(email: string): Promise<Page> {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(`${email}: ${e.message}`));
   page.on("console", (m) => {
-    if (m.type() === "error" && !/status of (401|403|404|409|422)/.test(m.text())) errors.push(`${email}: ${m.text()}`);
+    if (m.type() !== "error" || /status of (401|403|404|409|422)/.test(m.text())) return;
+    // The assistant outage test answers 503 on purpose; any other 503 still fails the suite.
+    if (/status of 503/.test(m.text()) && /\/api\/assistant\/conversations\/[^/]+\/messages$/.test(m.location().url)) return;
+    errors.push(`${email}: ${m.text()} (${m.location().url})`);
   });
   await page.goto(base + "/login");
   await page.fill("#lg-email", email);
@@ -189,13 +192,34 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
     await page.context().close();
   });
 
-  it("preview modules stay clearly labelled", async (ctx) => {
+  it("assistant: answers from real data with links, keeps history, no preview banner", async (ctx) => {
     if (!browser) return ctx.skip();
-    const page = await signedIn("admin@salesflow.test");
-    for (const path of ["/assistant"]) {
-      await page.goto(base + path);
-      await expect.poll(() => page.getByRole("note").filter({ visible: true }).getByText("Preview data").count(), { message: path }).toBe(1);
-    }
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/assistant");
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0); // no "Preview data" notice anywhere now
+    await expect.poll(() => visibleText(page, "Offline test provider · not a language model").count()).toBe(1);
+    const box = page.getByLabel("Message", { exact: true }).filter({ visible: true });
+    await box.fill("What is the status of INV-2026-002?");
+    await box.press("Enter");
+    await expect.poll(() => visibleText(page, /INV-2026-002: total 67\.68 EUR, outstanding 47\.68 EUR/).count(), { timeout: 10_000 }).toBe(1);
+    await expect.poll(() => visibleText(page, "Sources: invoice details").count()).toBe(1);
+    await expect.poll(() => page.getByRole("button", { name: /What is the status of INV-2026-002\?/ }).filter({ visible: true }).count()).toBeGreaterThan(0); // history
+    await page.getByRole("link", { name: "INV-2026-002" }).filter({ visible: true }).click();
+    await expect.poll(() => page.getByRole("dialog", { name: "Invoice details" }).getByRole("heading", { name: "INV-2026-002" }).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("assistant: a provider outage shows a safe error, and suggestions fill the box", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.korce@salesflow.test");
+    await page.goto(base + "/assistant");
+    await expect.poll(() => visibleText(page, "Answers are limited to your assigned customers and your own sales.").count()).toBe(1);
+    await page.getByRole("button", { name: "Which invoices are overdue?" }).filter({ visible: true }).click();
+    const box = page.getByLabel("Message", { exact: true }).filter({ visible: true });
+    expect(await box.inputValue()).toBe("Which invoices are overdue?");
+    await box.fill("[provider-down] sales this month");
+    await page.getByRole("button", { name: "Send" }).filter({ visible: true }).click();
+    await expect.poll(() => visibleText(page, /The AI service is unavailable right now/).count(), { timeout: 10_000 }).toBe(1);
     await page.context().close();
   });
 
