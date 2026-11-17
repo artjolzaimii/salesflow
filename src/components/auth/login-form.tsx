@@ -1,39 +1,36 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ROUTES } from "@/lib/navigation";
+import { useState, useTransition, type FormEvent } from "react";
+import { signInAction } from "@/app/actions/auth";
 import { validateLogin, type LoginForm as LoginValues } from "@/lib/validation";
-import { useActions } from "@/store/preview-store";
 import { Button } from "@/components/ui/button";
 import { Field, invalidProps } from "@/components/ui/field";
 
 /**
- * Preview sign-in: any valid email and an 8+ character password. No credentials
- * leave the browser; production posts to POST /api/auth/login.
+ * Email/password sign-in through Auth.js (server action). The password is only
+ * checked on the server; a failure returns one generic message. Accounts are
+ * created by an administrator; there is no self-registration.
  */
 export function LoginForm() {
-  const router = useRouter();
-  const actions = useActions();
   const [f, setF] = useState<LoginValues>({ email: "", password: "" });
   const [errors, setErrors] = useState<ReturnType<typeof validateLogin>>({});
-  const [loading, setLoading] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  useEffect(() => () => clearTimeout(timer.current), []);
+  const [formError, setFormError] = useState("");
+  const [loading, startTransition] = useTransition();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const errs = validateLogin(f);
     setErrors(errs);
+    setFormError("");
     if (Object.keys(errs).length) return;
-    setLoading(true);
-    timer.current = setTimeout(() => {
-      actions.signIn();
-      setLoading(false);
-      setF({ email: "", password: "" });
-      router.push(ROUTES.dashboard);
-    }, 900);
+    startTransition(async () => {
+      // Resolves only on failure; success redirects to the dashboard.
+      const res = await signInAction(f);
+      if (res.error) {
+        setFormError(res.error);
+        setF((v) => ({ ...v, password: "" }));
+      }
+    });
   };
 
   return (
@@ -65,11 +62,16 @@ export function LoginForm() {
           {...invalidProps("lg-pw", errors.password)}
         />
       </Field>
+      {formError ? (
+        <p role="alert" className="field-error m-0">
+          {formError}
+        </p>
+      ) : null}
       <Button type="submit" variant="primary" disabled={loading} className="min-h-10 text-[15px]">
         {loading ? "Signing in…" : "Sign in"}
       </Button>
       <p className="text-muted m-0 text-[12px]">
-        Preview: any valid email and a password of 8+ characters signs in. Production authenticates via POST /api/auth/login.
+        Accounts are created by your administrator. Business data on the following screens is still preview data.
       </p>
     </form>
   );

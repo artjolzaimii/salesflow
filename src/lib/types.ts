@@ -16,10 +16,10 @@ export type ISODate = string;
 export type Currency = "ALL" | "EUR" | "USD";
 export const CURRENCIES: readonly Currency[] = ["ALL", "EUR", "USD"];
 
-export type Role = "rep" | "manager" | "accountant" | "admin";
 export type DataState = "ready" | "loading" | "empty" | "error";
 
-export type OrderStatus = "Draft" | "Confirmed" | "Invoiced" | "Cancelled";
+/** Operational status. "Invoiced" is not a status: it is derived from `Order.invoiceId`. */
+export type OrderStatus = "Draft" | "Confirmed" | "Processing" | "Delivered" | "Cancelled";
 export type PaymentStatus = "Unpaid" | "Partial" | "Paid" | "Overdue";
 export type PaymentMethod = "Bank transfer" | "Cash" | "Card";
 export type BusinessType = "Supermarket" | "Grocery" | "Restaurant" | "Hotel" | "Café" | "Wholesale";
@@ -68,8 +68,17 @@ export interface Customer {
   notes: string;
 }
 
+/**
+ * An order line. Name, SKU, unit and VAT rate are snapshots taken when the line
+ * was created; historical orders render from them, never from the current
+ * product record.
+ */
 export interface OrderItem {
   productId: string;
+  productName: string;
+  sku: string;
+  unit: string;
+  vatRate: number;
   quantity: number;
   discountPct: number;
   /** Unit price in the order currency, cents, excluding VAT. */
@@ -94,6 +103,7 @@ export interface Order extends Totals {
   exchangeRate: number;
   status: OrderStatus;
   deliveryAddress: string;
+  /** Issued invoice, if any. Its presence is what "Invoiced" means. */
   invoiceId: string | null;
   items: OrderItem[];
 }

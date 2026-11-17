@@ -15,9 +15,14 @@ const calc = (qty: string, price: string, discount: string, vat: string) => {
   return { grossNet, discountAmount, taxableAmount, vatAmount, lineTotal: taxableAmount.plus(vatAmount) };
 };
 
+// DEVELOPMENT DATA ONLY. Fictional companies and four demo logins that share one
+// password (SEED_DEMO_PASSWORD, see .env.example). Never run against production.
+const DEV_DEFAULT_PASSWORD = 'ChangeMe-LocalDemo-2026!';
+
 async function main() {
+  if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed demo accounts with NODE_ENV=production.');
   // Seed is repeatable: use fixed natural keys and skip previously created orders.
-  const pw = await hash('ChangeMe-LocalDemo-2026!', 12);
+  const pw = await hash(process.env.SEED_DEMO_PASSWORD || DEV_DEFAULT_PASSWORD, 12);
   const people: { email: string; role: UserRole; first: string; last: string }[] = [
     { email: 'admin@salesflow.test', role: 'ADMIN', first: 'Arben', last: 'Dervishi' },
     { email: 'manager@salesflow.test', role: 'SALES_MANAGER', first: 'Elira', last: 'Kola' },
@@ -70,15 +75,22 @@ async function main() {
     customers.push(customer);
   }
   type Line = { index: number; qty: string; discount: string; overrideAll?: string };
-  type OrderSpec = { number: string; customer: number; currency: string; rate: string; lines: Line[]; payments: string[]; due: string };
+  type OrderSpec = { number: string; ordered: string; customer: number; currency: string; rate: string; lines: Line[]; payments: string[]; due: string };
   const orders: OrderSpec[] = [
-    { number: 'SO-2026-001', customer: 0, currency: 'ALL', rate: '1', lines: [{ index: 0, qty: '20', discount: '0' }, { index: 2, qty: '10', discount: '10' }], payments: ['1000', '2920'], due: '2026-11-30' },
-    { number: 'SO-2026-002', customer: 1, currency: 'EUR', rate: '100', lines: [{ index: 1, qty: '30', discount: '0' }, { index: 4, qty: '10', discount: '5' }], payments: ['20'], due: '2026-11-01' },
-    { number: 'SO-2026-003', customer: 2, currency: 'USD', rate: '90', lines: [{ index: 3, qty: '40', discount: '0' }, { index: 5, qty: '20', discount: '0' }], payments: [], due: '2026-12-15' },
-    { number: 'SO-2026-004', customer: 3, currency: 'ALL', rate: '1', lines: [{ index: 0, qty: '12', discount: '0' }, { index: 4, qty: '8', discount: '0' }], payments: ['2304'], due: '2026-11-10' },
+    { number: 'SO-2026-001', ordered: '2026-10-03', customer: 0, currency: 'ALL', rate: '1', lines: [{ index: 0, qty: '20', discount: '0' }, { index: 2, qty: '10', discount: '10' }], payments: ['1000', '2920'], due: '2026-11-30' },
+    { number: 'SO-2026-002', ordered: '2026-10-07', customer: 1, currency: 'EUR', rate: '100', lines: [{ index: 1, qty: '30', discount: '0' }, { index: 4, qty: '10', discount: '5' }], payments: ['20'], due: '2026-11-01' },
+    { number: 'SO-2026-003', ordered: '2026-10-10', customer: 2, currency: 'USD', rate: '90', lines: [{ index: 3, qty: '40', discount: '0' }, { index: 5, qty: '20', discount: '0' }], payments: [], due: '2026-12-15' },
+    { number: 'SO-2026-004', ordered: '2026-10-13', customer: 3, currency: 'ALL', rate: '1', lines: [{ index: 0, qty: '12', discount: '0' }, { index: 4, qty: '8', discount: '0' }], payments: ['2304'], due: '2026-11-10' },
   ];
+  // Timeline: orders 3-13 Oct, all invoiced 15 Oct, payments 20 Oct.
   for (const spec of orders) {
-    if (await db.order.findUnique({ where: { orderNumber: spec.number } })) continue;
+    const orderDate = new Date(spec.ordered + 'T09:00:00Z');
+    if (await db.order.findUnique({ where: { orderNumber: spec.number } })) {
+      // Earlier seeds used now() as the order date, which put orders after their
+      // invoices. Correct those rows in place (order_date is not a locked field).
+      await db.order.updateMany({ where: { orderNumber: spec.number, orderDate: { not: orderDate } }, data: { orderDate } });
+      continue;
+    }
     const customer = customers[spec.customer];
     const items = spec.lines.map(l => {
       const product = products[l.index];
@@ -94,7 +106,7 @@ async function main() {
       const order = await tx.order.create({ data: { orderNumber: spec.number, customerId: customer.id,
         salesRepId: customer.assignedRepId!, deliveryAddressId: customer.addresses[0].id,
         deliverySnapshot: { street: customer.addresses[0].street, city: customer.addresses[0].city },
-        currencyCode: spec.currency, allPerUnit: D(spec.rate), status: OrderStatus.CONFIRMED, ...totals,
+        currencyCode: spec.currency, allPerUnit: D(spec.rate), status: OrderStatus.CONFIRMED, orderDate, ...totals,
         items: { create: items } } });
       const invoice = await tx.invoice.create({ data: { invoiceNumber, orderId: order.id, currencyCode: spec.currency,
         allPerUnit: D(spec.rate), subtotalNet: totals.subtotalNet, discountTotal: totals.discountTotal,
@@ -115,6 +127,6 @@ async function main() {
     { role: AIMessageRole.USER, content: 'Cilet kliente kane fatura te papaguara?' },
     { role: AIMessageRole.ASSISTANT, content: 'Bisedë demonstrimi. Rezultatet duhet të merren nga mjetet e autorizuara gjatë përdorimit real.' },
   ] } } });
-  console.log('Seed complete. DEMO ONLY: replace credentials and fictional test data before deployment.');
+  console.log('Seed complete. DEVELOPMENT DATA ONLY: demo logins share SEED_DEMO_PASSWORD; never deploy them.');
 }
 main().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => db.$disconnect());

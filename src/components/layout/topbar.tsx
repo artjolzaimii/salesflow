@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { breadcrumbTrail, ROUTES, sectionOf, SECTION_HREF, type PageKey } from "@/lib/navigation";
+import { breadcrumbTrail, sectionOf, SECTION_HREF, type PageKey } from "@/lib/navigation";
+import { signOutAction } from "@/app/actions/auth";
 import { formatDate, formatMoney } from "@/lib/money";
 import { useActions } from "@/store/preview-store";
 import { useRole, useScopedData } from "@/store/hooks";
@@ -18,7 +18,6 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
   const role = useRole();
   const actions = useActions();
   const go = useGo();
-  const router = useRouter();
   const [notifOpen, setNotifOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
 
@@ -117,8 +116,7 @@ export function Topbar({ page, customerName }: { page: PageKey; customerName?: s
               type="button"
               onClick={() => {
                 setUserOpen(false);
-                actions.signOut();
-                router.push(ROUTES.login);
+                void signOutAction();
               }}
               className="flex w-full cursor-pointer items-center gap-2 border-0 bg-transparent px-[14px] py-[10px] text-[13px] hover:bg-accent-100"
             >
@@ -223,7 +221,7 @@ function Notifications({ open, onToggle, onPick }: { open: boolean; onToggle: ()
           pick: () => go.invoice(i.id),
         })),
       ...orders
-        .filter((o) => o.status === "Confirmed")
+        .filter((o) => !o.invoiceId && o.status !== "Draft" && o.status !== "Cancelled")
         .map((o) => ({
           key: o.id,
           title: `${o.id} is awaiting an invoice`,

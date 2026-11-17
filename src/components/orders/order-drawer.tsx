@@ -12,7 +12,6 @@ import { useGo } from "@/components/layout/use-go";
 /** Order detail drawer with preview status transitions (confirm, invoice, cancel). */
 export function OrderDrawer() {
   const id = usePreview((s) => s.orderDrawerId);
-  const products = usePreview((s) => s.data.products);
   const allInvoices = usePreview((s) => s.data.invoices);
   const { orders, customerById, repName } = useScopedData();
   const role = useRole();
@@ -24,13 +23,21 @@ export function OrderDrawer() {
 
   const c = customerById[order.customerId];
   const invoice = allInvoices.find((i) => i.orderId === order.id);
-  const confirmed = order.status === "Confirmed" || order.status === "Invoiced";
+  // Same transition table the server and database enforce (src/lib/order-status.ts).
+  const live = order.status !== "Draft" && order.status !== "Cancelled";
+  const confirmed = live;
   const canConfirm = order.status === "Draft" && role.canCreateOrders;
-  const canInvoice = order.status === "Confirmed" && role.canIssueInvoices;
-  const canCancel = (order.status === "Draft" || order.status === "Confirmed") && role.canCreateOrders;
+  const canInvoice = live && !invoice && role.canIssueInvoices;
+  const nextStep = order.status === "Confirmed" ? "Processing" : order.status === "Processing" ? "Delivered" : null;
+  const canAdvance = !!nextStep && role.canFulfilOrders;
+  // An order with an issued invoice cannot be cancelled; cancel the invoice first.
+  const canCancel = (order.status === "Draft" || order.status === "Confirmed" || order.status === "Processing") && !invoice && role.canCancelOrders;
+  const reached = (s: "Processing" | "Delivered") => order.status === s || (s === "Processing" && order.status === "Delivered");
   const timeline = [
     { t: "Created", d: formatDate(order.date), done: true },
     { t: "Confirmed", d: confirmed ? formatDate(order.date) : "Pending", done: confirmed },
+    { t: "Processing", d: reached("Processing") ? "Done" : "Pending", done: reached("Processing") },
+    { t: "Delivered", d: reached("Delivered") ? "Done" : "Pending", done: reached("Delivered") },
     { t: "Invoiced", d: invoice ? formatDate(invoice.issueDate) : "Pending", done: !!invoice },
   ];
 
@@ -44,6 +51,7 @@ export function OrderDrawer() {
           <div className="flex items-center gap-[10px]">
             <h2 className="m-0 text-[26px]">{order.id}</h2>
             <StatusBadge label={order.status} bordered />
+            {invoice ? <StatusBadge label="Invoiced" /> : null}
           </div>
           <span className="text-[13px] text-neutral-700">
             {c.name} · {formatDate(order.date)}
@@ -51,7 +59,7 @@ export function OrderDrawer() {
         </div>
       }
     >
-      {canConfirm || canInvoice || canCancel ? (
+      {canConfirm || canInvoice || canAdvance || canCancel ? (
         <div className="flex flex-wrap gap-2">
           {canConfirm ? (
             <Button variant="primary" icon="check" onClick={() => actions.confirmOrder(order.id)}>
@@ -72,6 +80,11 @@ export function OrderDrawer() {
               }
             >
               Issue invoice
+            </Button>
+          ) : null}
+          {canAdvance && nextStep ? (
+            <Button icon="check" onClick={() => actions.advanceOrder(order.id, nextStep)}>
+              Mark as {nextStep.toLowerCase()}
             </Button>
           ) : null}
           {canCancel ? (
@@ -118,7 +131,7 @@ export function OrderDrawer() {
         ]}
       />
 
-      <ItemsTable order={order} products={products} />
+      <ItemsTable order={order} />
       <FinancialSummary totals={order} currency={order.currency} rate={order.exchangeRate} />
 
       <div className="flex flex-col gap-2">

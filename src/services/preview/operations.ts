@@ -14,6 +14,7 @@ import type { CreateCustomerInput, CreateOrderInput, CreatePaymentInput, SavePro
 const nextNumber = (ids: string[]) => Math.max(0, ...ids.map((id) => Number(id.slice(-4)))) + 1;
 const pad4 = (n: number) => String(n).padStart(4, "0");
 
+/** Mirrors POST /api/orders/{id}/status; the server enforces the same transition table. */
 export function setOrderStatus(data: SalesDataset, orderId: string, status: OrderStatus): SalesDataset {
   return { ...data, orders: data.orders.map((o) => (o.id === orderId ? { ...o, status } : o)) };
 }
@@ -42,7 +43,7 @@ export function issueInvoice(data: SalesDataset, orderId: string, today = PREVIE
     invoice,
     data: {
       ...data,
-      orders: data.orders.map((o) => (o.id === orderId ? { ...o, status: "Invoiced", invoiceId: id } : o)),
+      orders: data.orders.map((o) => (o.id === orderId ? { ...o, invoiceId: id } : o)),
       invoices: [invoice, ...data.invoices],
     },
   };
@@ -51,6 +52,11 @@ export function issueInvoice(data: SalesDataset, orderId: string, today = PREVIE
 export function createOrder(data: SalesDataset, input: CreateOrderInput): { data: SalesDataset; order: Order } {
   const customer = data.customers.find((c) => c.id === input.customerId)!;
   const id = "SO-2026-" + pad4(nextNumber(data.orders.map((o) => o.id)));
+  // Snapshot product name, SKU, unit and VAT onto each line, as the server does.
+  const items = input.items.map((it) => {
+    const p = data.products.find((x) => x.id === it.productId)!;
+    return { ...it, productName: p.name, sku: p.sku, unit: p.unit, vatRate: p.vatRate };
+  });
   const order: Order = {
     id,
     customerId: customer.id,
@@ -61,8 +67,8 @@ export function createOrder(data: SalesDataset, input: CreateOrderInput): { data
     status: input.status,
     deliveryAddress: input.deliveryAddressId === "customer" ? customer.street + ", " + customer.city : WAREHOUSE_PICKUP,
     invoiceId: null,
-    items: input.items,
-    ...orderTotals(input.items, data.products),
+    items,
+    ...orderTotals(items),
   };
   return { order, data: { ...data, orders: [order, ...data.orders] } };
 }

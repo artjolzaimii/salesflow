@@ -75,12 +75,39 @@ The frontend models (`src/lib/types.ts`) were written before the schema was avai
 | Dates | ISO date strings | `orderDate` is a timestamp; invoice and payment dates are `DATE` | Format order timestamps in the business time zone. |
 | Data | Preview fixtures (14 customers, 10 products, 16 orders) | Seed (5 customers, 6 products, 4 orders, different names) | The two sets diverge on purpose. The UI keeps fixtures until the API phase. |
 
+## Phase 5A changes (migration `20261117090000_business_rules_invoice_replacement`)
+
+Additive only, applied with `prisma migrate deploy`, and no data was lost. Details are in [auth.md](auth.md).
+
+- **Enums:** `BusinessType.CAFE` and `AddressType.REGISTERED_OFFICE`.
+- **Order lifecycle trigger:** invoiced orders may move CONFIRMED → PROCESSING → DELIVERED. Money and items stay locked, and an order with an issued invoice can't be cancelled.
+- **Invoices:**
+  - `order_id` is no longer unique. A partial unique index allows one ISSUED invoice per order.
+  - New columns: `cancelled_at`, `cancellation_reason`, `cancelled_by_id`, and `replaces_invoice_id` (unique). A CHECK constraint ties the cancellation fields to the status.
+  - Cancellation is final, and a replacement must reference the cancelled invoice of the same order.
+- **Payments:** `idempotency_key` (unique) prevents duplicate payments when a request is retried.
+- **Unchanged:** `guard_payment()` (snapshot-safe) and every Phase 4 constraint. `db:verify:guards` now runs 61 checks.
+
+Mapping table updates:
+- **Accountant role:** dropped. There are three roles.
+- **Café:** maps to `CAFE`.
+- **Registered office:** maps to `REGISTERED_OFFICE`.
+- **Order status:** the UI shows operational statuses (Draft, Confirmed, Processing, Delivered, Cancelled) plus a derived "Invoiced" badge.
+- **Order items:** these now render from line snapshots.
+
 ## Remaining issues and decisions
 
-- **Roles and enums:** accountant role, Café business type, Registered-office address type, Blocked customer status, PROCESSING/DELIVERED in the UI (see the table).
-- **Invoiced orders can't progress.** `orders_invoiced_lock` freezes `status`, so an invoiced order (CONFIRMED) can never become PROCESSING or DELIVERED. If fulfilment tracking is wanted after invoicing, exclude status from the lock (keeping CANCELLED blocked).
-- **Cancelled invoices are a dead end.** `order_id` is unique, so an order whose invoice is cancelled can't be re-invoiced, and the trigger also allows CANCELLED → ISSUED. A credit-note design is out of scope per the starter.
-- **Sub-cent input is rounded, not rejected:** `numeric(18,2)` stores 10.005 as 10.01. The API must reject more than 2 decimals before insert.
-- **Serialization retries:** with the concurrency fix, REPEATABLE READ / SERIALIZABLE payment transactions can fail with SQLSTATE 40001. The payment service must retry or surface it.
-- **Service-layer rules from the starter** still apply: role eligibility, ownership checks, email/NIPT normalisation, order numbering, price-override permission, freezing financial edits after confirmation, `deliverySnapshot` shape.
-- **Seed dates:** invoices issue on 2026-10-15 while orders take `now()` as their order date, so some orders postdate their invoices. Fine for demo data; fix in the seed if reports use order dates.
+- **Still open:**
+  - Display codes for customers, employees and payments.
+  - Employee territory and customer notes columns.
+  - A "Blocked" customer state in the UI.
+  - Payment terms (business size is optional in the database).
+  - The `deliverySnapshot` shape.
+- **Correcting amounts after invoicing:** a replacement invoice copies the locked order totals. Fixing an amount needs a new order, because credit notes are out of scope.
+- **Database rounding:** `numeric(18,2)` would still round sub-cent input. The payment service rejects it first, and every future write path must use the same validation (`src/server/domain/money.ts`).
+- **Service-layer rules for later phases:**
+  - Email and NIPT normalisation.
+  - Order numbering.
+  - Price-override enforcement on order create/update (`prices.override` and `isPriceOverride()` are ready).
+  - Freezing draft edits after confirmation.
+  - Sequential fiscal invoice numbering (replacement numbers are `<original>-R<n>`).

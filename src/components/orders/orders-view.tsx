@@ -32,7 +32,7 @@ export function OrdersView() {
     return orders.filter(
       (o) =>
         (!q || o.id.toLowerCase().includes(q) || customerById[o.customerId].name.toLowerCase().includes(q)) &&
-        (f.status === "all" || o.status === f.status) &&
+        (f.status === "all" || (f.status === "Invoiced" ? !!o.invoiceId : o.status === f.status)) &&
         (f.currency === "all" || o.currency === f.currency),
     );
   }, [orders, customerById, f]);
@@ -66,8 +66,10 @@ export function OrdersView() {
               <option value="all">All statuses</option>
               <option value="Draft">Draft</option>
               <option value="Confirmed">Confirmed</option>
-              <option value="Invoiced">Invoiced</option>
+              <option value="Processing">Processing</option>
+              <option value="Delivered">Delivered</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="Invoiced">Invoiced (any status)</option>
             </select>
             <select className="input w-auto" aria-label="Currency" value={f.currency} onChange={(e) => set("currency", e.target.value)}>
               <option value="all">All currencies</option>
@@ -102,7 +104,10 @@ export function OrdersView() {
                   <td>{o.currency}</td>
                   <td className="num whitespace-nowrap">{formatMoney(o.total)}</td>
                   <td>
-                    <StatusBadge label={o.status} bordered />
+                    <span className="inline-flex flex-wrap gap-1">
+                      <StatusBadge label={o.status} bordered />
+                      {o.invoiceId ? <StatusBadge label="Invoiced" /> : null}
+                    </span>
                   </td>
                   <td className="text-right">
                     <Button

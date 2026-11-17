@@ -13,7 +13,7 @@ import { createContext, useContext, useEffect, useState, useSyncExternalStore, t
 import { buildFixtureConversations, ASSISTANT_OFFLINE_REPLY } from "@/mocks/assistant";
 import { buildPreviewDataset, DEFAULT_RATES, PREVIEW_TODAY } from "@/mocks/fixtures";
 import { formatMoney } from "@/lib/money";
-import type { Conversation, Currency, DataState, Role, SalesDataset } from "@/lib/types";
+import type { Conversation, Currency, DataState, SalesDataset } from "@/lib/types";
 import type { DraftLine } from "@/lib/validation";
 import * as ops from "@/services/preview/operations";
 import type { CreateCustomerInput, CreateOrderInput, CreatePaymentInput, SaveProductInput } from "@/services/api";
@@ -44,9 +44,7 @@ export interface PreviewState {
   assistantPending: boolean;
   assistantInput: string;
 
-  role: Role;
   dataState: DataState;
-  signedIn: boolean;
 
   sidebarCollapsed: boolean;
   mobileNavOpen: boolean;
@@ -78,9 +76,7 @@ function initialState(): PreviewState {
     activeConversationId: "c1",
     assistantPending: false,
     assistantInput: "",
-    role: "manager",
     dataState: "ready",
-    signedIn: true,
     sidebarCollapsed: false,
     mobileNavOpen: false,
     toast: null,
@@ -121,11 +117,8 @@ function createPreviewStore() {
     set,
     toast,
 
-    /* ----- preview controls & session ----- */
-    setRole: (role: Role) => set({ role }),
+    /* ----- preview controls ----- */
     setDataState: (dataState: DataState) => set({ dataState }),
-    signIn: () => set({ signedIn: true }),
-    signOut: () => set({ signedIn: false }),
 
     /* ----- shell ----- */
     toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -150,6 +143,11 @@ function createPreviewStore() {
     confirmOrder: (id: string) => {
       set((s) => ({ data: ops.setOrderStatus(s.data, id, "Confirmed") }));
       toast(id + " confirmed.");
+    },
+    /** Operational progress; allowed after invoicing (amounts stay locked). */
+    advanceOrder: (id: string, status: "Processing" | "Delivered") => {
+      set((s) => ({ data: ops.setOrderStatus(s.data, id, status) }));
+      toast(`${id} marked as ${status.toLowerCase()}.`);
     },
     cancelOrder: (id: string) => {
       set((s) => ({ data: ops.setOrderStatus(s.data, id, "Cancelled") }));

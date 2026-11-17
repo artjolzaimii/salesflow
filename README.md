@@ -2,7 +2,10 @@
 
 Sales management frontend for wholesale and distribution (customers, orders, invoices, payments, reports, AI assistant), migrated from the Claude Design prototype in `design-reference/`.
 
-**Status:** the UI runs in preview mode on fictional in-memory fixtures (reload resets data). Phase 4 added PostgreSQL + Prisma with migrations, seed and verified financial guards ([docs/database.md](docs/database.md)), but the UI does not read the database yet. No authentication or business APIs exist yet.
+**Status:**
+- **Phase 4** added PostgreSQL and Prisma with migrations, a seed and verified financial guards ([docs/database.md](docs/database.md)).
+- **Phase 5A** added Auth.js sign-in against the database, server-side role and ownership checks, the finalised business rules and their endpoints ([docs/auth.md](docs/auth.md)).
+- **Still preview:** the business screens run on fictional in-memory fixtures (a reload resets them).
 
 ## Run
 
@@ -14,11 +17,17 @@ npm run lint
 npx tsc --noEmit
 
 # database (Docker): see docs/database.md
-cp .env.example .env && npm run db:up && npm run db:deploy && npm run db:seed
+cp .env.example .env          # then set AUTH_SECRET: openssl rand -base64 33
+npm run db:up && npm run db:deploy && npm run db:seed
 npm run db:verify:guards
+
+# tests (see docs/auth.md)
+npm run build && npm test
 ```
 
-Preview sign-in accepts any valid email and a password of 8+ characters. The sidebar footer has **View as** (rep / manager / accountant / admin) and **Data state** (ready / loading / empty / error) controls, which replace the design tool's Tweaks panel.
+Sign in with a seeded **development** account: `admin@`, `manager@`, `rep.tirana@` or `rep.korce@salesflow.test`. The shared password is `SEED_DEMO_PASSWORD` from `.env`.
+
+The role comes from the session. The sidebar footer keeps a **Data state** control (ready / loading / empty / error) for previewing list states.
 
 ## Layout
 
@@ -36,9 +45,13 @@ Preview sign-in accepts any valid email and a password of 8+ characters. The sid
 | `src/store/` | Client store (preview data and UI state) and role-scoped selectors. |
 | `prisma/`, `prisma.config.ts` | Schema, migrations (incl. financial guards), seed. |
 | `scripts/` | Database verification (`verify.sql`, `verify-guards.ts`). |
-| `src/server/db.ts` | Server-only Prisma client (not used by the UI yet). |
+| `src/auth.ts`, `src/proxy.ts` | Auth.js configuration; optimistic redirect for requests without a session cookie. |
+| `src/server/` | Server-only code: Prisma client, auth (credentials, session/DAL, scope), domain (Decimal pricing, money validation), services (orders, invoices, payments, customers), HTTP helpers, retry. |
+| `src/app/api/` | Route handlers: Auth.js, `/api/me`, order status, invoice cancel/replacement, payments, scoped customer list. |
+| `src/lib/permissions.ts` | Central permission matrix (3 roles), enforced on the server, read by the UI. |
+| `tests/` | Vitest: unit, database (throwaway `salesflow_test`), HTTP against the production build. |
 | `src/styles/industry.css` | Industry design-system component CSS. Tokens live in `src/app/globals.css` (`@theme`). |
 
 ## Moving to a real backend
 
-Implement `SalesFlowApi` against the endpoints in `src/services/api.ts` and replace the store's calls to `src/services/preview/operations.ts`. Field names in `src/lib/types.ts` still need confirming against the Prisma schema (see `design-reference/IMPLEMENTATION.md`, "Fields that need schema confirmation"). Permissions shown in `src/lib/roles.ts` only drive UI visibility; the server must enforce them.
+Implement `SalesFlowApi` against the endpoints in `src/services/api.ts` and replace the store's calls to `src/services/preview/operations.ts`. The frontend↔database field mapping is in `docs/database.md`. `src/lib/roles.ts` derives UI visibility from the permission matrix; the server enforces the same matrix plus record scope (`src/server/auth/`).

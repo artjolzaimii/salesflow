@@ -19,13 +19,18 @@ import type {
   Payment,
   PaymentMethod,
   Product,
-  Role,
   Totals,
 } from "@/lib/types";
+import type { ClientSessionUser } from "@/lib/session-user";
 
 export const API_ENDPOINTS = {
-  login: "POST /api/auth/login",
-  session: "GET /api/auth/session",
+  // Implemented (Phase 5A): Auth.js sign-in/out, current user, business-rule endpoints.
+  login: "POST /api/auth/callback/credentials (Auth.js; the app uses a server action)",
+  session: "GET /api/me",
+  orderDetail: "GET /api/orders/:id",
+  orderStatus: "POST /api/orders/:id/status",
+  cancelInvoice: "POST /api/invoices/:id/cancel",
+  replaceInvoice: "POST /api/invoices/:id/replacement",
   dashboard: "GET /api/dashboard/summary",
   customers: "GET /api/customers",
   createCustomer: "POST /api/customers",
@@ -47,13 +52,8 @@ export const API_ENDPOINTS = {
   sendMessage: "POST /api/assistant/conversations/:id/messages",
 } as const;
 
-export interface Session {
-  userId: string;
-  name: string;
-  role: Role;
-  /** Set for sales representatives; the server scopes data to this employee. */
-  employeeId?: string;
-}
+/** GET /api/me. Data scoping (reps: own customers) is applied on the server. */
+export type Session = ClientSessionUser;
 
 export interface CreateOrderInput {
   customerId: string;

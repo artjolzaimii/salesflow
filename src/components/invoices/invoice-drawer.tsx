@@ -24,7 +24,6 @@ function Figure({ label, value, highlight }: { label: string; value: ReactNode; 
 /** Read-only invoice detail: issued values are immutable. */
 export function InvoiceDrawer() {
   const id = usePreview((s) => s.invoiceDrawerId);
-  const products = usePreview((s) => s.data.products);
   const allOrders = usePreview((s) => s.data.orders);
   const allPayments = usePreview((s) => s.data.payments);
   const { invoices, customerById } = useScopedData();
@@ -92,7 +91,7 @@ export function InvoiceDrawer() {
         ]}
       />
 
-      <ItemsTable order={order} products={products} />
+      <ItemsTable order={order} />
       <FinancialSummary totals={inv} currency={inv.currency} rate={inv.exchangeRate} />
 
       <div className="flex flex-col gap-[6px]">

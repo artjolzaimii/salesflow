@@ -1,22 +1,22 @@
 import { formatMoney, lineTotals } from "@/lib/money";
-import type { Currency, Order, Product, Totals } from "@/lib/types";
+import type { Currency, Order, Totals } from "@/lib/types";
 
-/** Item table shared by the order and invoice drawers. */
-export function ItemsTable({ order, products }: { order: Order | undefined; products: Product[] }) {
-  const rows = (order?.items ?? []).map((it, i) => {
-    const p = products.find((x) => x.id === it.productId);
-    const vatRate = p?.vatRate ?? 0;
-    return {
-      key: i,
-      name: p?.name ?? it.productId,
-      sku: p?.sku ?? "",
-      qty: `${it.quantity.toLocaleString("en-US")} ${p?.unit ?? ""}`,
-      price: formatMoney(it.unitPrice),
-      disc: `${it.discountPct}%`,
-      vat: `${vatRate}%`,
-      total: formatMoney(lineTotals(it, vatRate).total),
-    };
-  });
+/**
+ * Item table shared by the order and invoice drawers. Renders the line
+ * snapshots (name, SKU, unit, price, VAT as sold), so later product edits never
+ * change a historical document.
+ */
+export function ItemsTable({ order }: { order: Order | undefined }) {
+  const rows = (order?.items ?? []).map((it, i) => ({
+    key: i,
+    name: it.productName,
+    sku: it.sku,
+    qty: `${it.quantity.toLocaleString("en-US")} ${it.unit}`,
+    price: formatMoney(it.unitPrice),
+    disc: `${it.discountPct}%`,
+    vat: `${it.vatRate}%`,
+    total: formatMoney(lineTotals(it, it.vatRate).total),
+  }));
   return (
     <div className="flex flex-col gap-[6px]">
       <h4 className="m-0 text-[16px]">Items</h4>

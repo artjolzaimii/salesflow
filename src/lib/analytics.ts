@@ -67,7 +67,7 @@ export function dashboardSummary(args: {
   /** Jan…previous month history, ALL cents (fixture series in preview). */
   history: number[];
 }): DashboardSummary {
-  const { today, invoices, orders, allOrders, customers, products, employees, history } = args;
+  const { today, invoices, orders, allOrders, customers, employees, history } = args;
   const period = monthToDate(today);
   const thisMonth = invoices.filter((i) => i.issueDate >= period.start);
   const lastMonth = invoices.filter((i) => i.issueDate >= period.prevStart && i.issueDate <= period.prevEnd);
@@ -96,11 +96,9 @@ export function dashboardSummary(args: {
   thisMonth.forEach((inv) => {
     const order = allOrders.find((o) => o.id === inv.orderId);
     order?.items.forEach((it) => {
-      const p = products.find((x) => x.id === it.productId);
-      if (!p) return;
-      const agg = (byProduct[p.id] ??= { name: p.name, unit: p.unit, q: 0, v: 0 });
+      const agg = (byProduct[it.productId] ??= { name: it.productName, unit: it.unit, q: 0, v: 0 });
       agg.q += it.quantity;
-      agg.v += toAllEquivalent(lineTotals(it, p.vatRate).taxable, inv);
+      agg.v += toAllEquivalent(lineTotals(it, it.vatRate).taxable, inv);
     });
   });
   const topProducts = Object.values(byProduct)
@@ -165,7 +163,7 @@ export function salesReport(args: {
   currency: ReportCurrency;
   today: string;
 }): ReportResult {
-  const { invoices, allOrders, products, customerById, repName, from, to, group, currency, today } = args;
+  const { invoices, allOrders, customerById, repName, from, to, group, currency, today } = args;
   const convert = currency === "ALL_EQ";
   const rc: Currency = convert ? "ALL" : currency;
   const val = (amount: number, inv: Invoice) => (convert ? toAllEquivalent(amount, inv) : amount);
@@ -207,10 +205,8 @@ export function salesReport(args: {
         allOrders
           .find((o) => o.id === i.orderId)
           ?.items.forEach((it) => {
-            const p = products.find((x) => x.id === it.productId);
-            if (!p) return;
-            const l = lineTotals(it, p.vatRate);
-            add(p.id, p.name, p.sku, it.quantity, val(l.taxable, i), val(l.vat, i), val(l.total, i));
+            const l = lineTotals(it, it.vatRate);
+            add(it.productId, it.productName, it.sku, it.quantity, val(l.taxable, i), val(l.vat, i), val(l.total, i));
           });
         return;
       }

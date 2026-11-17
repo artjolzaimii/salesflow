@@ -212,14 +212,43 @@ async function guardTests() {
     await rejects(db, "invoice delete rejected", `DELETE FROM invoices WHERE id = $1`, [i3.id], /cannot be deleted/);
     await rejects(db, "cancelling an invoice with payments rejected", `UPDATE invoices SET status = 'CANCELLED' WHERE id = $1`, [i1.id], /with payments/);
     await db.query("SAVEPOINT c");
-    await db.query(`UPDATE invoices SET status = 'CANCELLED' WHERE id = $1`, [i3.id]); // allowed: no payments yet
+    await rejects(db, "cancellation without time and reason rejected", `UPDATE invoices SET status = 'CANCELLED' WHERE id = $1`, [i3.id], /invoices_cancellation_fields/);
+    await db.query(`UPDATE invoices SET status = 'CANCELLED', cancelled_at = now(), cancellation_reason = 'verification' WHERE id = $1`, [i3.id]); // allowed: no payments yet
     await rejects(db, "payment on a cancelled invoice rejected", PAY, [i3.id, "1", "USD", "t4"], /not payable/);
+    await rejects(db, "cancelled invoice cannot be reissued in place", `UPDATE invoices SET status = 'ISSUED', cancelled_at = NULL, cancellation_reason = NULL WHERE id = $1`, [i3.id], /Cancelled invoice is final/);
+    {
+      const copy = `INSERT INTO invoices (id, invoice_number, order_id, currency_code, all_per_unit, subtotal_net, discount_total, taxable_total, vat_total, total, issue_date, due_date, replaces_invoice_id)
+        SELECT gen_random_uuid(), $2, order_id, currency_code, all_per_unit, subtotal_net, discount_total, taxable_total, vat_total, total, issue_date, due_date, $3 FROM invoices WHERE id = $1`;
+      await rejects(db, "re-invoicing requires a replacement link", copy, [i3.id, "T-R0", null], /must reference the cancelled invoice/);
+      await db.query("SAVEPOINT r");
+      try {
+        await db.query(copy, [i3.id, "T-R1", i3.id]);
+        pass("replacement for a cancelled invoice is accepted");
+      } catch (e) {
+        fail("replacement for a cancelled invoice is accepted", (e as Error).message);
+      }
+      await rejects(db, "a cancelled invoice is replaced at most once", copy, [i3.id, "T-R2", i3.id], /already has an issued invoice|invoices_replaces_invoice_id_key/);
+      await db.query("ROLLBACK TO SAVEPOINT r");
+    }
     await db.query("ROLLBACK TO SAVEPOINT c");
 
     // Invoiced orders are frozen
     await rejects(db, "invoiced order totals are locked", `UPDATE orders SET grand_total = grand_total + 1, vat_total = vat_total + 1 WHERE id = $1`, [i1.order_id], /financially locked/);
     await rejects(db, "invoiced order rate is locked", `UPDATE orders SET all_per_unit = 2 WHERE id = $1`, [i3.order_id], /financially locked/);
-    await rejects(db, "invoiced order cannot be cancelled", `UPDATE orders SET status = 'CANCELLED' WHERE id = $1`, [i1.order_id], /financially locked/);
+    await rejects(db, "invoiced order cannot be cancelled", `UPDATE orders SET status = 'CANCELLED' WHERE id = $1`, [i1.order_id], /issued invoice/);
+    {
+      await db.query("SAVEPOINT s");
+      try {
+        await db.query(`UPDATE orders SET status = 'PROCESSING' WHERE id = $1`, [i1.order_id]);
+        await db.query(`UPDATE orders SET status = 'DELIVERED' WHERE id = $1`, [i1.order_id]);
+        pass("invoiced order may progress CONFIRMED → PROCESSING → DELIVERED");
+      } catch (e) {
+        fail("invoiced order may progress CONFIRMED → PROCESSING → DELIVERED", (e as Error).message);
+      }
+      await rejects(db, "delivered order cannot go back", `UPDATE orders SET status = 'CONFIRMED' WHERE id = $1`, [i1.order_id], /Invalid order status transition/);
+      await rejects(db, "status change does not unlock totals", `UPDATE orders SET grand_total = grand_total + 1, vat_total = vat_total + 1 WHERE id = $1`, [i1.order_id], /financially locked/);
+      await db.query("ROLLBACK TO SAVEPOINT s");
+    }
     await rejects(db, "invoiced order items cannot change", `UPDATE order_items SET quantity = quantity + 1 WHERE order_id = $1`, [i1.order_id], /invoiced order/);
     await rejects(db, "invoiced order items cannot be deleted", `DELETE FROM order_items WHERE order_id = $1`, [i1.order_id], /invoiced order/);
     await rejects(db, "items cannot be added to an invoiced order", `
@@ -280,7 +309,7 @@ async function guardTests() {
     {
       await db.query("SAVEPOINT r");
       const { rows } = await db.query(`${PAY} RETURNING amount`, [i3.id, "10.005", "USD", "t-round"]);
-      console.log(`  NOTE  payment amount 10.005 was stored as ${rows[0].amount}: numeric(18,2) rounds sub-cent input instead of rejecting it`);
+      console.log(`  NOTE  payment amount 10.005 was stored as ${rows[0].amount}: numeric(18,2) rounds sub-cent input, so the payment service rejects it before insert (tests/unit/money.test.ts)`);
       await db.query("ROLLBACK TO SAVEPOINT r");
     }
 

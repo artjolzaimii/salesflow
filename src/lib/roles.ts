@@ -1,82 +1,65 @@
-import type { Role } from "./types";
-import type { PageKey } from "./navigation";
+import { can, isScopedRole, type Permission, type UserRole } from "./permissions";
+import type { SectionKey } from "./navigation";
+import type { ClientSessionUser } from "./session-user";
 
 /**
- * Preview role configuration (prototype `RC`).
- *
- * In production the session (GET /api/auth/session) returns the role, and this
- * table only decides what the UI shows. The server enforces permissions on
- * every route; hiding a button is never the access control.
+ * What the UI shows for the signed-in role. Derived from the permission matrix
+ * (src/lib/permissions.ts), which the server enforces on every request; these
+ * flags only decide which buttons and sections appear.
  */
 export interface RoleConfig {
   user: string;
   title: string;
   initials: string;
   /** Top-level sections visible in the sidebar. */
-  nav: PageKey[];
+  nav: SectionKey[];
   canCreateOrders: boolean;
   canRegisterPayments: boolean;
   canEditProducts: boolean;
   canCreateCustomers: boolean;
   canIssueInvoices: boolean;
+  canCancelInvoices: boolean;
+  canFulfilOrders: boolean;
+  canCancelOrders: boolean;
+  canOverridePrices: boolean;
   /** Reps only see their assigned customers and everything derived from them. */
   scopedToOwnCustomers: boolean;
 }
 
-export const ROLES: Record<Role, RoleConfig> = {
-  rep: {
-    user: "Arben Hoxha",
-    title: "Sales representative",
-    initials: "AH",
-    nav: ["dashboard", "orders", "invoices", "payments", "customers", "products", "reports", "assistant"],
-    canCreateOrders: true,
-    canRegisterPayments: false,
-    canEditProducts: false,
-    canCreateCustomers: true,
-    canIssueInvoices: false,
-    scopedToOwnCustomers: true,
-  },
-  manager: {
-    user: "Valbona Gjoka",
-    title: "Sales manager",
-    initials: "VG",
-    nav: ["dashboard", "orders", "invoices", "payments", "customers", "products", "categories", "employees", "reports", "assistant"],
-    canCreateOrders: true,
-    canRegisterPayments: true,
-    canEditProducts: true,
-    canCreateCustomers: true,
-    canIssueInvoices: true,
-    scopedToOwnCustomers: false,
-  },
-  accountant: {
-    user: "Ilir Murati",
-    title: "Accountant",
-    initials: "IM",
-    nav: ["dashboard", "orders", "invoices", "payments", "customers", "reports", "assistant"],
-    canCreateOrders: false,
-    canRegisterPayments: true,
-    canEditProducts: false,
-    canCreateCustomers: false,
-    canIssueInvoices: true,
-    scopedToOwnCustomers: false,
-  },
-  admin: {
-    user: "Sokol Prifti",
-    title: "Administrator",
-    initials: "SP",
-    nav: ["dashboard", "orders", "invoices", "payments", "customers", "products", "categories", "employees", "reports", "assistant", "users", "settings"],
-    canCreateOrders: true,
-    canRegisterPayments: true,
-    canEditProducts: true,
-    canCreateCustomers: true,
-    canIssueInvoices: true,
-    scopedToOwnCustomers: false,
-  },
+/** Permission required to open each section; the server pages check the same table. */
+export const SECTION_PERMISSION: Record<SectionKey, Permission> = {
+  dashboard: "orders.view",
+  orders: "orders.view",
+  invoices: "invoices.view",
+  payments: "payments.view",
+  customers: "customers.view",
+  products: "products.view",
+  categories: "categories.manage",
+  employees: "employees.view",
+  reports: "reports.view",
+  assistant: "assistant.use",
+  users: "users.manage",
+  settings: "settings.manage",
 };
 
-export const ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: "rep", label: "Sales representative" },
-  { value: "manager", label: "Sales manager" },
-  { value: "accountant", label: "Accountant" },
-  { value: "admin", label: "Administrator" },
-];
+const SECTION_ORDER = Object.keys(SECTION_PERMISSION) as SectionKey[];
+
+export function roleConfig(user: Pick<ClientSessionUser, "name" | "title" | "initials" | "role">): RoleConfig {
+  const role: UserRole = user.role;
+  return {
+    user: user.name,
+    title: user.title,
+    initials: user.initials,
+    nav: SECTION_ORDER.filter((s) => can(role, SECTION_PERMISSION[s])),
+    canCreateOrders: can(role, "orders.create"),
+    canRegisterPayments: can(role, "payments.record"),
+    canEditProducts: can(role, "products.manage"),
+    canCreateCustomers: can(role, "customers.create"),
+    canIssueInvoices: can(role, "invoices.issue"),
+    canCancelInvoices: can(role, "invoices.cancel"),
+    canFulfilOrders: can(role, "orders.fulfil"),
+    canCancelOrders: can(role, "orders.cancel"),
+    canOverridePrices: can(role, "prices.override"),
+    scopedToOwnCustomers: isScopedRole(role),
+  };
+}

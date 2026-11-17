@@ -1,10 +1,13 @@
 import type { OrderStatus, PaymentStatus } from "@/lib/types";
 
-export type BadgeLabel = OrderStatus | PaymentStatus | "Active" | "Inactive";
+export type BadgeLabel = OrderStatus | PaymentStatus | "Invoiced" | "Active" | "Inactive";
 
 const TONES: Record<BadgeLabel, { bg: string; fg: string }> = {
   Draft: { bg: "var(--color-neutral-200)", fg: "var(--color-neutral-800)" },
   Confirmed: { bg: "var(--color-accent-100)", fg: "var(--color-accent-800)" },
+  Processing: { bg: "var(--color-accent-2-100)", fg: "var(--color-accent-2-800)" },
+  Delivered: { bg: "var(--color-accent-200)", fg: "var(--color-accent-900)" },
+  /** Derived financial indicator shown beside the operational status. */
   Invoiced: { bg: "var(--color-accent-200)", fg: "var(--color-accent-900)" },
   Cancelled: { bg: "transparent", fg: "var(--color-neutral-700)" },
   Paid: { bg: "var(--color-success-100)", fg: "var(--color-success-800)" },

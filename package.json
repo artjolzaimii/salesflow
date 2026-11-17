@@ -17,7 +17,10 @@
     "db:verify": "docker compose exec -T postgres psql -U salesflow -d salesflow -v ON_ERROR_STOP=1 < scripts/verify.sql",
     "db:verify:guards": "tsx scripts/verify-guards.ts",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:db": "vitest run tests/unit tests/db"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -25,10 +28,12 @@
     "bcryptjs": "^3.0.3",
     "dotenv": "^18.0.10",
     "next": "16.4.6",
+    "next-auth": "5.0.0-beta.32",
     "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "^0.0.1"
+    "server-only": "^0.0.1",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",
@@ -41,6 +46,7 @@
     "prisma": "7.10.1",
     "tailwindcss": "4.3.3",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.12"
   }
 }

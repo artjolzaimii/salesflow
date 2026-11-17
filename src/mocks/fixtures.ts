@@ -67,8 +67,8 @@ const CUSTOMERS: [string, string, string, BusinessType, BusinessSize, string, bo
   ["Mini Market Lana", "L58821430N", "Tiranë", "Grocery", "Small", "E01", true, "Redon Kapllani", "Owner", "+355 69 503 8821", "Rr. Ali Demi 63", "1019", "Tiranë"],
 ];
 
-// order no., customer index, date, currency, rate, status, items [product index, qty, disc %]
-const ORDERS: [string, number, string, Currency, number, OrderStatus, [number, number, number][]][] = [
+// order no., customer index, date, currency, rate, status ("Invoiced" = has an invoice), items [product index, qty, disc %]
+const ORDERS: [string, number, string, Currency, number, OrderStatus | "Invoiced", [number, number, number][]][] = [
   ["0403", 13, "2026-10-08", "ALL", 1, "Invoiced", [[0, 30, 0], [8, 60, 0], [5, 50, 0]]],
   ["0404", 10, "2026-10-11", "ALL", 1, "Invoiced", [[6, 30, 5], [3, 500, 5]]],
   ["0405", 2, "2026-10-15", "EUR", 98.1, "Invoiced", [[1, 10, 0], [4, 25, 0]]],
@@ -131,10 +131,19 @@ export function buildPreviewDataset(today: string = PREVIEW_TODAY): SalesDataset
     email: emailFor(r[0]),
   }));
 
-  const orders: Order[] = ORDERS.map(([no, ci, date, currency, exchangeRate, status, lines]) => {
+  const invoicedIds = new Set<string>();
+  const orders: Order[] = ORDERS.map(([no, ci, date, currency, exchangeRate, raw, lines]) => {
     const c = customers[ci];
+    // Invoiced orders carry an operational status of their own: older ones are
+    // delivered, recent ones still being processed or awaiting dispatch.
+    const status: OrderStatus = raw !== "Invoiced" ? raw : date <= "2026-10-31" ? "Delivered" : date <= "2026-11-10" ? "Processing" : "Confirmed";
+    if (raw === "Invoiced") invoicedIds.add("SO-2026-" + no);
     const items = lines.map(([pi, quantity, discountPct]) => ({
       productId: products[pi].id,
+      productName: products[pi].name,
+      sku: products[pi].sku,
+      unit: products[pi].unit,
+      vatRate: products[pi].vatRate,
       quantity,
       discountPct,
       unitPrice: currency === "ALL" ? products[pi].price : Math.round(products[pi].price / exchangeRate),
@@ -150,14 +159,14 @@ export function buildPreviewDataset(today: string = PREVIEW_TODAY): SalesDataset
       deliveryAddress: c.street + ", " + c.city,
       invoiceId: null,
       items,
-      ...orderTotals(items, products),
+      ...orderTotals(items),
     };
   });
 
   const invoices: Invoice[] = [];
   const payments: Payment[] = [];
   orders
-    .filter((o) => o.status === "Invoiced")
+    .filter((o) => invoicedIds.has(o.id))
     .forEach((o, i) => {
       const c = customers.find((x) => x.id === o.customerId)!;
       const issueDate = addDays(o.date, 1);

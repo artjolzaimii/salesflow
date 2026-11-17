@@ -1,4 +1,4 @@
-import type { Cents, Currency, ISODate, Invoice, OrderItem, PaymentStatus, Product, Totals } from "./types";
+import type { Cents, Currency, ISODate, Invoice, OrderItem, PaymentStatus, Totals } from "./types";
 
 /**
  * Financial rules mirrored from the prototype (design-reference/IMPLEMENTATION.md):
@@ -29,11 +29,9 @@ export function addTotals(a: Totals, b: Totals): Totals {
   };
 }
 
-export function orderTotals(items: OrderItem[], products: Product[]): Totals {
-  return items.reduce((sum, item) => {
-    const product = products.find((p) => p.id === item.productId);
-    return addTotals(sum, lineTotals(item, product ? product.vatRate : 0));
-  }, ZERO_TOTALS);
+/** Totals from the lines' own VAT snapshots (not the current product VAT). */
+export function orderTotals(items: OrderItem[]): Totals {
+  return items.reduce((sum, item) => addTotals(sum, lineTotals(item, item.vatRate)), ZERO_TOTALS);
 }
 
 /** Converts an amount to ALL at the rate recorded on the document. */

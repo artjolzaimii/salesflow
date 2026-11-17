@@ -10,13 +10,13 @@ import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
 /**
- * Signed-in frame. Preview sign-in is a client flag only; production gates these
- * routes with the session from GET /api/auth/session and server-side checks.
+ * Signed-in frame. The (app) layout has already verified the session on the
+ * server; this only hides sections the role cannot open (the server pages
+ * enforce the same rule).
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const signedIn = usePreview((s) => s.signedIn);
   const mobileOpen = usePreview((s) => s.mobileNavOpen);
   const customers = usePreview((s) => s.data.customers);
   const role = useRole();
@@ -28,11 +28,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     page === "customerDetail" ? customers.find((c) => c.id === decodeURIComponent(pathname.split("/")[2] ?? ""))?.name : undefined;
 
   useEffect(() => {
-    if (!signedIn) router.replace(ROUTES.login);
-    else if (!allowed) router.replace(ROUTES.dashboard);
-  }, [signedIn, allowed, router]);
-
-  if (!signedIn) return null;
+    if (!allowed) router.replace(ROUTES.dashboard);
+  }, [allowed, router]);
 
   return (
     <div className="flex min-h-screen">

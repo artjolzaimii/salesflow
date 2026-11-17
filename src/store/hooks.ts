@@ -2,14 +2,17 @@
 
 import { useMemo } from "react";
 import { paymentStatus } from "@/lib/money";
-import { ROLES, type RoleConfig } from "@/lib/roles";
-import type { Customer, DataState, Employee, InvoiceView, Order, Payment, Role } from "@/lib/types";
+import type { UserRole } from "@/lib/permissions";
+import { roleConfig, type RoleConfig } from "@/lib/roles";
+import type { Customer, DataState, Employee, InvoiceView, Order, Payment } from "@/lib/types";
 import { PREVIEW_REP_ID } from "@/mocks/fixtures";
 import { usePreview } from "./preview-store";
+import { useSessionUser } from "./session";
 
-export function useRole(): RoleConfig & { key: Role } {
-  const role = usePreview((s) => s.role);
-  return useMemo(() => ({ ...ROLES[role], key: role }), [role]);
+/** UI flags for the signed-in user's role (from the server session, not a client setting). */
+export function useRole(): RoleConfig & { key: UserRole } {
+  const user = useSessionUser();
+  return useMemo(() => ({ ...roleConfig(user), key: user.role }), [user]);
 }
 
 export interface ScopedData {
@@ -29,13 +32,13 @@ export interface ScopedData {
  */
 export function useScopedData(): ScopedData {
   const data = usePreview((s) => s.data);
-  const role = usePreview((s) => s.role);
+  const scoped = useRole().scopedToOwnCustomers;
   const today = usePreview((s) => s.today);
 
   return useMemo(() => {
     const customerById: Record<string, Customer> = {};
     data.customers.forEach((c) => (customerById[c.id] = c));
-    const customers = data.customers.filter((c) => !ROLES[role].scopedToOwnCustomers || c.repId === PREVIEW_REP_ID);
+    const customers = data.customers.filter((c) => !scoped || c.repId === PREVIEW_REP_ID);
     const ids = new Set(customers.map((c) => c.id));
     const invoices = data.invoices
       .filter((i) => ids.has(i.customerId))
@@ -49,7 +52,7 @@ export function useScopedData(): ScopedData {
       employees: data.employees,
       repName: (id: string) => data.employees.find((e) => e.id === id)?.name ?? "—",
     };
-  }, [data, role, today]);
+  }, [data, scoped, today]);
 }
 
 /** Loading / error / empty / ready flags for list screens, driven by the preview data-state control. */
