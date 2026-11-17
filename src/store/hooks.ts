@@ -1,58 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { paymentStatus } from "@/lib/money";
 import type { UserRole } from "@/lib/permissions";
 import { roleConfig, type RoleConfig } from "@/lib/roles";
-import type { Customer, Employee, InvoiceView, Order, Payment } from "@/lib/types";
-import { PREVIEW_REP_ID } from "@/mocks/fixtures";
-import { usePreview } from "./preview-store";
 import { useSessionUser } from "./session";
 
 /** UI flags for the signed-in user's role (from the server session, not a client setting). */
 export function useRole(): RoleConfig & { key: UserRole } {
   const user = useSessionUser();
   return useMemo(() => ({ ...roleConfig(user), key: user.role }), [user]);
-}
-
-export interface ScopedData {
-  customers: Customer[];
-  customerById: Record<string, Customer>;
-  orders: Order[];
-  invoices: InvoiceView[];
-  payments: Payment[];
-  employees: Employee[];
-  repName: (id: string) => string;
-}
-
-/**
- * The records the current role may see. Mirrors the server-side scoping the
- * production API applies: a representative only sees assigned customers and the
- * orders, invoices and payments that belong to them.
- */
-export function useScopedData(): ScopedData {
-  const data = usePreview((s) => s.data);
-  const scoped = useRole().scopedToOwnCustomers;
-  const today = usePreview((s) => s.today);
-
-  return useMemo(() => {
-    const customerById: Record<string, Customer> = {};
-    data.customers.forEach((c) => (customerById[c.id] = c));
-    const customers = data.customers.filter((c) => !scoped || c.repId === PREVIEW_REP_ID);
-    const ids = new Set(customers.map((c) => c.id));
-    const invoices = data.invoices
-      .filter((i) => ids.has(i.customerId))
-      .map((i) => ({ ...i, outstanding: i.total - i.paid, status: paymentStatus(i, today) }));
-    return {
-      customers,
-      customerById,
-      orders: data.orders.filter((o) => ids.has(o.customerId)),
-      invoices,
-      payments: data.payments.filter((p) => ids.has(p.customerId)),
-      employees: data.employees,
-      repName: (id: string) => data.employees.find((e) => e.id === id)?.name ?? "—",
-    };
-  }, [data, scoped, today]);
 }
 
 /** Loading / error / empty / ready flags for list screens. */

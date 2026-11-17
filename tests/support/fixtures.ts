@@ -32,6 +32,8 @@ interface OrderSpec {
   currency?: "ALL" | "EUR" | "USD";
   rate?: string;
   lines?: { sku: string; qty: string; discount?: string }[];
+  /** YYYY-MM-DD; default now. */
+  orderDate?: string;
 }
 
 /** A fresh order for one test, priced with the production pricing rules. */
@@ -67,6 +69,7 @@ export async function createOrder(spec: OrderSpec) {
       currencyCode: currency,
       allPerUnit: rate,
       status: spec.status ?? "CONFIRMED",
+      ...(spec.orderDate ? { orderDate: new Date(spec.orderDate + "T00:00:00Z") } : {}),
       ...totals,
       items: { create: items },
     },

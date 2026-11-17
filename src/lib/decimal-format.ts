@@ -21,3 +21,14 @@ export function grossWithVat(net: string, vatPercent: string): string | null {
   const s = cents.toString().padStart(3, "0");
   return `${s.slice(0, -2)}.${s.slice(-2)}`;
 }
+
+/** "1234567.50" → "1,234,568": a non-negative decimal string rounded half-up to whole units, without floating point. */
+export function formatWholeDecimal(value: string): string {
+  const neg = value.startsWith("-");
+  const [int, frac = ""] = value.replace(/^-/, "").split(".");
+  const rounded = (BigInt(int || "0") + (frac[0] && frac[0] >= "5" ? BigInt(1) : BigInt(0))).toString();
+  return (neg && rounded !== "0" ? "−" : "") + rounded.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/** Decimal string → number for chart geometry only (bar heights, shares); never for displayed amounts. */
+export const chartValue = (value: string) => Number(value) || 0;

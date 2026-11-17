@@ -6,7 +6,7 @@ import { INVOICE_STATUS_FILTERS, MAX_DUE_DAYS } from "@/lib/invoice-status";
 import { CURRENCY_CODES, paymentTermsDays } from "@/lib/labels";
 import { INVOICEABLE_STATUSES, type OrderStatusCode } from "@/lib/order-status";
 import { assertPermission, hasPermission, isScoped, type Principal } from "@/server/auth/principal";
-import { invoiceScope, orderScope } from "@/server/auth/scope";
+import { invoiceScope, orderScope, orderScopeSql } from "@/server/auth/scope";
 import { getDb } from "@/server/db";
 import { deriveInvoiceStatus } from "@/server/domain/invoice-status";
 import { D, isoDate, round2 } from "@/server/domain/money";
@@ -65,8 +65,6 @@ export type InvoiceListQuery = z.output<typeof invoiceListQuery>;
 
 /* --------------------------------------------------------------- list */
 
-const NO_EMPLOYEE = "00000000-0000-0000-0000-000000000000";
-
 const SORT_SQL: Record<InvoiceListQuery["sort"], Prisma.Sql> = {
   issueDate: Prisma.sql`issue_date`,
   dueDate: Prisma.sql`due_date`,
@@ -107,11 +105,7 @@ export async function listInvoices(p: Principal, query: InvoiceListQuery = invoi
   assertPermission(p, "invoices.view");
   const db = getDb();
   const today = businessDate();
-  const conds: Prisma.Sql[] = [Prisma.sql`TRUE`];
-  if (isScoped(p)) {
-    const emp = p.employeeId ?? NO_EMPLOYEE;
-    conds.push(Prisma.sql`(o.sales_rep_id = ${emp}::uuid OR c.assigned_rep_id = ${emp}::uuid)`);
-  }
+  const conds: Prisma.Sql[] = [orderScopeSql(p)];
   if (query.currency) conds.push(Prisma.sql`i.currency_code = ${query.currency}`);
   if (query.customerId) conds.push(Prisma.sql`o.customer_id = ${query.customerId}::uuid`);
   if (query.orderId) conds.push(Prisma.sql`i.order_id = ${query.orderId}::uuid`);
@@ -141,7 +135,7 @@ export async function listInvoices(p: Principal, query: InvoiceListQuery = invoi
       FROM invoices i
       JOIN orders o ON o.id = i.order_id
       JOIN customers c ON c.id = o.customer_id
-      LEFT JOIN (SELECT invoice_id, SUM(amount) AS paid FROM payments GROUP BY invoice_id) pay ON pay.invoice_id = i.id
+      CROSS JOIN LATERAL (SELECT SUM(x.amount) AS paid FROM payments x WHERE x.invoice_id = i.id) pay
       WHERE ${Prisma.join(conds, " AND ")}
     ), filtered AS (
       SELECT * FROM base WHERE ${query.status ? statusCond[query.status] : Prisma.sql`TRUE`}
@@ -243,7 +237,10 @@ export async function getInvoice(p: Principal, invoiceId: string) {
           invoices: { select: { status: true } },
         },
       },
-      payments: { orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }] },
+      payments: {
+        orderBy: [{ paymentDate: "asc" }, { createdAt: "asc" }],
+        include: { recordedBy: { select: { email: true, employee: { select: { firstName: true, lastName: true } } } } },
+      },
       cancelledBy: { select: { email: true, employee: { select: { firstName: true, lastName: true } } } },
       replacesInvoice: { select: { id: true, invoiceNumber: true } },
       replacedBy: { select: { id: true, invoiceNumber: true, status: true } },
@@ -255,7 +252,9 @@ export async function getInvoice(p: Principal, invoiceId: string) {
   const b = deriveInvoiceStatus(inv, paid, today);
   const can = (perm: Parameters<typeof hasPermission>[1]) => hasPermission(p, perm);
   const orderHasIssued = inv.order.invoices.some((i) => i.status === "ISSUED");
-  const billing = inv.order.customer.addresses[0];
+  const snapshot = parseBillingSnapshot(inv.billingAddressSnapshot);
+  const current = inv.order.customer.addresses[0];
+  const seeAudit = can("payments.record");
   const foreign = inv.currencyCode !== "ALL";
   let running = D(0);
   return {
@@ -293,8 +292,12 @@ export async function getInvoice(p: Principal, invoiceId: string) {
       id: inv.order.customer.id,
       businessName: inv.order.customer.businessName,
       nipt: inv.order.customer.nipt,
-      /** The customer's current billing address (addresses are not snapshotted on invoices). */
-      billingAddress: billing ? [billing.street, [billing.postalCode, billing.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") : inv.order.customer.city,
+      /** Billing address as recorded on the invoice; for invoices issued before snapshots existed, the customer's current one. */
+      billingAddress: snapshot ? formatAddress(snapshot) : current ? formatAddress(current) : inv.order.customer.city,
+      billingFromSnapshot: !!snapshot,
+      /** Name and NIPT as billed (snapshot), else the customer's current values. */
+      billedName: snapshot?.businessName ?? inv.order.customer.businessName,
+      billedNipt: snapshot?.nipt ?? inv.order.customer.nipt,
       paymentTermsDays: paymentTermsDays(inv.order.customer.businessSize),
     },
     /** The order's item snapshot; frozen since the first invoice (guard trigger). */
@@ -320,6 +323,8 @@ export async function getInvoice(p: Principal, invoiceId: string) {
         reference: x.reference,
         balanceAfter: inv.total.minus(running).toFixed(2),
         recordedAt: x.createdAt,
+        /** Who recorded it (managers and admins only; null for payments recorded before attribution existed). */
+        recordedBy: seeAudit ? personName(x.recordedBy) : null,
       };
     }),
     cancellation:
@@ -340,6 +345,64 @@ export async function getInvoice(p: Principal, invoiceId: string) {
         INVOICEABLE_STATUSES.includes(inv.order.status) &&
         can("invoices.issue"),
     },
+  };
+}
+
+/* ------------------------------------------------------ billing snapshot */
+
+/** Billing details frozen on an invoice at issue (invoices.billing_address_snapshot). */
+export interface BillingSnapshot {
+  businessName: string;
+  nipt: string;
+  addressId: string | null;
+  label: string | null;
+  type: string | null;
+  street: string | null;
+  city: string;
+  municipality: string | null;
+  postalCode: string | null;
+}
+
+const BILLING_TYPE_PRIORITY = ["BILLING", "BOTH", "REGISTERED_OFFICE"] as const;
+
+function parseBillingSnapshot(v: Prisma.JsonValue | null): BillingSnapshot | null {
+  return v && typeof v === "object" && !Array.isArray(v) && typeof (v as Record<string, unknown>).businessName === "string" ? (v as unknown as BillingSnapshot) : null;
+}
+
+function formatAddress(a: { street: string | null; postalCode: string | null; city: string }) {
+  return [a.street, [a.postalCode, a.city].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+}
+
+/**
+ * The customer's billing details right now: name, NIPT and the billing address
+ * (BILLING, then BOTH, then REGISTERED_OFFICE; the default one first). Without
+ * such an address only the customer's city is recorded.
+ */
+async function currentBillingSnapshot(tx: Db, orderId: string): Promise<BillingSnapshot> {
+  const { customer } = await tx.order.findUniqueOrThrow({
+    where: { id: orderId },
+    select: {
+      customer: {
+        select: {
+          businessName: true,
+          nipt: true,
+          city: true,
+          addresses: { where: { type: { in: [...BILLING_TYPE_PRIORITY] } }, orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }] },
+        },
+      },
+    },
+  });
+  const address = [...customer.addresses].sort((a, b) => BILLING_TYPE_PRIORITY.indexOf(a.type as never) - BILLING_TYPE_PRIORITY.indexOf(b.type as never))[0];
+  return {
+    businessName: customer.businessName,
+    nipt: customer.nipt,
+    addressId: address?.id ?? null,
+    label: address?.label ?? null,
+    type: address?.type ?? null,
+    street: address?.street ?? null,
+    city: address?.city ?? customer.city,
+    municipality: address?.municipality ?? null,
+    postalCode: address?.postalCode ?? null,
   };
 }
 
@@ -368,7 +431,7 @@ function checkDueDate(issue: string, due: Date) {
  * order row lock. Copies the order snapshot field for field; the guard trigger
  * verifies the copy, the order status and the one-issued-invoice rule again.
  */
-async function insertInvoice(tx: Db, order: OrderSnapshot, dueDate: Date, replacesInvoiceId: string | null) {
+async function insertInvoice(tx: Db, order: OrderSnapshot, dueDate: Date, replacesInvoiceId: string | null, billing: BillingSnapshot) {
   const issue = businessDate();
   checkDueDate(issue, dueDate);
   const [{ number }] = await tx.$queryRaw<{ number: string }[]>`SELECT next_invoice_number(${Number(issue.slice(0, 4))}::int) AS number`;
@@ -386,6 +449,7 @@ async function insertInvoice(tx: Db, order: OrderSnapshot, dueDate: Date, replac
       total: order.grandTotal,
       issueDate: utcDate(issue),
       dueDate,
+      billingAddressSnapshot: billing as unknown as Prisma.InputJsonObject,
     },
     select: { id: true },
   });
@@ -430,7 +494,7 @@ export async function issueInvoice(p: Principal, orderId: string, input: IssueIn
           throw conflict("REPLACEMENT_REQUIRED", `Invoice ${existing[0].invoiceNumber} of this order was cancelled. Issue a replacement from that invoice instead.`);
         }
         const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: ORDER_SNAPSHOT });
-        return insertInvoice(tx, order, input.dueDate, null);
+        return insertInvoice(tx, order, input.dueDate, null, await currentBillingSnapshot(tx, orderId));
       }),
     );
     return getInvoice(p, created.id);
@@ -509,7 +573,10 @@ export async function issueReplacementInvoice(p: Principal, cancelledInvoiceId: 
           order.vatTotal.eq(cancelled.vatTotal) &&
           order.grandTotal.eq(cancelled.total);
         if (!same) throw conflict("SNAPSHOT_MISMATCH", "The order's amounts no longer match the cancelled invoice. Contact an administrator.");
-        return insertInvoice(tx, order, input.dueDate, cancelled.id);
+        // Snapshot preservation: a replacement keeps the billing details of the invoice it replaces.
+        // Only an invoice issued before snapshots existed has none; its replacement records today's.
+        const billing = parseBillingSnapshot(cancelled.billingAddressSnapshot) ?? (await currentBillingSnapshot(tx, visible.orderId));
+        return insertInvoice(tx, order, input.dueDate, cancelled.id, billing);
       }),
     );
     return getInvoice(p, created.id);

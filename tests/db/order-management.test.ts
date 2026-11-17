@@ -212,7 +212,8 @@ describe("authorization and ownership", () => {
     const m = await principalFor(MANAGER);
     const mine = await createOrder(m, body({ customerId: liqeni, currencyCode: "ALL" }));
     const page = await listOrders(korce, orderListQuery.parse({ pageSize: "100" }));
-    expect(page.items.map((o) => o.id)).toContain(mine.id);
+    // Searched by number: other files' fixture orders (stamped with the time of day) can fill the first page.
+    expect((await listOrders(korce, orderListQuery.parse({ q: mine.orderNumber }))).items.map((o) => o.id)).toEqual([mine.id]);
     const custs = await db().customer.findMany({ where: { id: { in: page.items.map((o) => o.customer.id) } }, select: { assignedRepId: true } });
     expect(page.items.every((o) => o.salesRep.id === korce.employeeId) || custs.every((c) => c.assignedRepId === korce.employeeId)).toBe(true);
     const found = await listOrders(m, orderListQuery.parse({ q: mine.orderNumber }));

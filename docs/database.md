@@ -26,6 +26,7 @@ Seed login password for all four users: `ChangeMe-LocalDemo-2026!` (local demo o
 | `prisma/migrations/…_init_salesflow` | Tables, indexes, foreign keys (generated) |
 | `prisma/migrations/…_financial_guards` | Approved `financial-guards.sql`, verbatim: 19 CHECK constraints, 4 triggers |
 | `prisma/migrations/…_payment_guard_snapshot_safe` | Fix for concurrent overpayment under REPEATABLE READ / SERIALIZABLE (see below) |
+| `prisma/migrations/…_payment_attribution_billing_snapshot` | Phase 5E: `payments.recorded_by_user_id`, `invoices.billing_address_snapshot` (immutable via `guard_invoice()`), reporting indexes |
 | `prisma/migrations/…_invoice_numbering` | Phase 5D: `invoice_number_counters`, `next_invoice_number()`, `sync_invoice_number_counters()` and the forward-only counter trigger |
 | `prisma/seed.ts` | Approved seed (type annotations added so it passes `tsc`; behaviour unchanged) |
 | `prisma.config.ts` | Prisma 7 config: schema, migrations path, seed command, datasource URL from env |
@@ -119,6 +120,12 @@ The order module uses the existing schema; no migration was needed.
 - **Payment status** is derived from status, total, payments, due date and today (Europe/Tirane), never stored. The invoice list applies the same rules in SQL so it can filter and sort by status and outstanding balance.
 - **Payments** keep the existing guard, SERIALIZABLE transaction with retry, and idempotency key; the service adds clearer pre-checks (outstanding balance, payment date not in the future or before the issue date).
 
+## Phase 5E (reporting, migration `20261119090000_payment_attribution_billing_snapshot`)
+
+- **`payments.recorded_by_user_id`** (nullable FK to `users`, `ON DELETE RESTRICT`): set by the payment service for every new payment. Existing payments stay `NULL`. Immutable because `guard_payment()` refuses every update.
+- **`invoices.billing_address_snapshot`** (nullable `jsonb`, CHECK: an object): business name, NIPT and billing address at issue. Existing invoices stay `NULL`. `guard_invoice()` now refuses any change to it, and requires a replacement to carry the replaced invoice's snapshot when that invoice has one. All other guard rules are unchanged.
+- **Indexes:** `invoices (status, issue_date)` and `payments (payment_date)` for the reporting date-range aggregations. See [reporting.md](reporting.md).
+
 ## Remaining issues and decisions
 
 - **Still open:**
@@ -127,8 +134,7 @@ The order module uses the existing schema; no migration was needed.
   - Payment terms (business size is optional in the database).
 - **Correcting amounts after invoicing:** a replacement invoice copies the locked order totals. Fixing an amount needs a new order, because credit notes are out of scope.
 - **Invoice numbers:** the four seeded invoices keep their 3-digit numbers (`INV-2026-001`); new ones use 6 digits. Lists sort them naturally. Fiscalization (Albanian e-invoicing) is not integrated.
-- **Payment audit:** payments don't record which user entered them (no column); invoice cancellations do.
-- **Billing address:** invoices show the customer's current billing address; addresses are not snapshotted on invoices.
+- **Audit back-fill:** payments recorded and invoices issued before Phase 5E have no recorder and no billing snapshot; none is invented.
 - **Database rounding:** `numeric(18,2)` would still round sub-cent input. The payment service rejects it first, and every future write path must use the same validation (`src/server/domain/money.ts`).
 - **Service-layer rules for later phases:**
   - A status history table (the order drawer's timeline shows reached steps, not their dates).

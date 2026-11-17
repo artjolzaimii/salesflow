@@ -16,7 +16,6 @@ export type ISODate = string;
 export type Currency = "ALL" | "EUR" | "USD";
 export const CURRENCIES: readonly Currency[] = ["ALL", "EUR", "USD"];
 
-export type DataState = "ready" | "loading" | "empty" | "error";
 
 /** Operational status. "Invoiced" is not a status: it is derived from `Order.invoiceId`. */
 export type OrderStatus = "Draft" | "Confirmed" | "Processing" | "Delivered" | "Cancelled";

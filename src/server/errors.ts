@@ -66,6 +66,9 @@ const GUARD_ERRORS: Record<string, [number, string]> = {
   "Replacement must reference a cancelled invoice of the same order": [409, "INVALID_REPLACEMENT"],
   "Replacement invoice must reference the cancelled invoice it replaces": [409, "INVALID_REPLACEMENT"],
   "Invoiced order is financially locked": [409, "ORDER_FINANCIALLY_LOCKED"],
+  "Invoice billing snapshot is immutable": [409, "INVOICE_IMMUTABLE"],
+  "Issued invoice financial snapshot is immutable": [409, "INVOICE_IMMUTABLE"],
+  "Replacement must keep the billing snapshot of the invoice it replaces": [409, "INVALID_REPLACEMENT"],
   "Cannot change items of an invoiced order": [409, "ORDER_FINANCIALLY_LOCKED"],
   "Cannot cancel an order with an issued invoice": [409, "ORDER_HAS_ISSUED_INVOICE"],
 };

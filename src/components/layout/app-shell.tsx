@@ -18,12 +18,9 @@ import { Topbar } from "./topbar";
  */
 /**
  * Sections that still run on fictional fixtures until their backend phase.
- * Customers, products, categories, employees, exchange rates, orders, invoices
- * and payments are live.
+ * Everything except the AI assistant is live since Phase 5E.
  */
 const PREVIEW_SECTIONS: Partial<Record<ReturnType<typeof sectionOf>, string>> = {
-  dashboard: "The dashboard figures",
-  reports: "Reports",
   assistant: "AI Assistant conversations",
 };
 

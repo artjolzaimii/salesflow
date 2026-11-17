@@ -12,7 +12,7 @@
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { buildFixtureConversations, ASSISTANT_OFFLINE_REPLY } from "@/mocks/assistant";
 import { buildPreviewDataset, PREVIEW_TODAY } from "@/mocks/fixtures";
-import type { Conversation, DataState, SalesDataset } from "@/lib/types";
+import type { Conversation, SalesDataset } from "@/lib/types";
 
 export interface ConfirmRequest {
   title: string;
@@ -29,7 +29,6 @@ export interface PreviewState {
   assistantPending: boolean;
   assistantInput: string;
 
-  dataState: DataState;
 
   sidebarCollapsed: boolean;
   mobileNavOpen: boolean;
@@ -54,7 +53,6 @@ function initialState(): PreviewState {
     activeConversationId: "c1",
     assistantPending: false,
     assistantInput: "",
-    dataState: "ready",
     sidebarCollapsed: false,
     mobileNavOpen: false,
     toast: null,
@@ -93,9 +91,6 @@ function createPreviewStore() {
   const actions = {
     set,
     toast,
-
-    /* ----- preview controls ----- */
-    setDataState: (dataState: DataState) => set({ dataState }),
 
     /* ----- shell ----- */
     toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

@@ -1,4 +1,4 @@
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { isScoped, type Principal } from "./principal";
 
 /** Matches no row: used for a representative without an employee record. */
@@ -31,4 +31,15 @@ export function invoiceScope(p: Principal): Prisma.InvoiceWhereInput {
 
 export function paymentScope(p: Principal): Prisma.PaymentWhereInput {
   return isScoped(p) ? { invoice: invoiceScope(p) } : {};
+}
+
+/**
+ * The order scope as a parameterized SQL condition, for aggregate queries that
+ * Prisma's query API can't express (reports, invoice list). Expects the query to
+ * alias orders as `o` and customers as `c`. Same rule as orderScope().
+ */
+export function orderScopeSql(p: Principal): Prisma.Sql {
+  if (!isScoped(p)) return Prisma.sql`TRUE`;
+  const emp = p.employeeId ?? NO_EMPLOYEE;
+  return Prisma.sql`(o.sales_rep_id = ${emp}::uuid OR c.assigned_rep_id = ${emp}::uuid)`;
 }

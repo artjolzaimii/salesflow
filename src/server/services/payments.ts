@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { businessDate, ymd } from "@/lib/business-date";
 import { CURRENCY_CODES } from "@/lib/labels";
-import { assertPermission, type Principal } from "@/server/auth/principal";
+import { assertPermission, hasPermission, type Principal } from "@/server/auth/principal";
 import { invoiceScope, paymentScope } from "@/server/auth/scope";
 import { getDb } from "@/server/db";
 import { deriveInvoiceStatus } from "@/server/domain/invoice-status";
@@ -40,6 +40,7 @@ const PAYMENT_SELECT = {
   reference: true,
   idempotencyKey: true,
   createdAt: true,
+  recordedBy: { select: { email: true, employee: { select: { firstName: true, lastName: true } } } },
 } satisfies Prisma.PaymentSelect;
 
 type PaymentRow = Prisma.PaymentGetPayload<{ select: typeof PAYMENT_SELECT }>;
@@ -103,7 +104,7 @@ export async function listPayments(p: Principal, query: PaymentListQuery = payme
   return {
     ...paged(
       rows.map((r) => ({
-        ...serialize(r),
+        ...serialize(r, p),
         invoiceNumber: r.invoice.invoiceNumber,
         invoiceStatus: r.invoice.status,
         order: { id: r.invoice.order.id, orderNumber: r.invoice.order.orderNumber },
@@ -149,7 +150,7 @@ export async function getPayment(p: Principal, paymentId: string) {
   const paidNow = inv.payments.reduce((s, x) => s.plus(x.amount), D(0));
   const b = deriveInvoiceStatus(inv, paidNow, businessDate());
   return {
-    ...serialize(row),
+    ...serialize(row, p),
     invoice: {
       id: inv.id,
       invoiceNumber: inv.invoiceNumber,
@@ -229,6 +230,7 @@ export async function recordPayment(p: Principal, input: RecordPaymentInput, ret
                 method: input.method,
                 reference: input.reference || null,
                 idempotencyKey: input.idempotencyKey,
+                recordedByUserId: p.userId,
               },
               select: PAYMENT_SELECT,
             }),
@@ -236,7 +238,7 @@ export async function recordPayment(p: Principal, input: RecordPaymentInput, ret
         ),
       retry,
     );
-    return { payment: serialize(payment), replayed: false };
+    return { payment: serialize(payment, p), replayed: false };
   } catch (e) {
     if (isUniqueViolation(e, "payments_idempotency_key_key")) {
       const winner = await findByKey(p, input.idempotencyKey, input);
@@ -254,10 +256,14 @@ async function findByKey(p: Principal, key: string, expect?: RecordPaymentInput)
   if (!visible || (expect && (row.invoiceId !== expect.invoiceId || !row.amount.eq(expect.amount)))) {
     throw conflict("IDEMPOTENCY_KEY_REUSED", "This idempotency key was already used for a different payment.");
   }
-  return { payment: serialize(row), replayed: true };
+  return { payment: serialize(row, p), replayed: true };
 }
 
-function serialize(row: PaymentRow) {
+/** Who recorded a payment is audit information: shown to roles that may record payments (managers, admins). */
+const seesAttribution = (p: Principal) => hasPermission(p, "payments.record");
+
+function serialize(row: PaymentRow, p: Principal) {
+  const by = row.recordedBy;
   return {
     id: row.id,
     invoiceId: row.invoiceId,
@@ -267,5 +273,8 @@ function serialize(row: PaymentRow) {
     method: row.method,
     reference: row.reference,
     recordedAt: row.createdAt,
+    /** null when hidden from the caller or when the payment predates attribution (see recordedByKnown). */
+    recordedBy: seesAttribution(p) && by ? (by.employee ? `${by.employee.firstName} ${by.employee.lastName}` : by.email) : null,
+    recordedByKnown: seesAttribution(p) ? !!by : null,
   };
 }

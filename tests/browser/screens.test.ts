@@ -192,7 +192,7 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
   it("preview modules stay clearly labelled", async (ctx) => {
     if (!browser) return ctx.skip();
     const page = await signedIn("admin@salesflow.test");
-    for (const path of ["/dashboard", "/reports", "/assistant"]) {
+    for (const path of ["/assistant"]) {
       await page.goto(base + path);
       await expect.poll(() => page.getByRole("note").filter({ visible: true }).getByText("Preview data").count(), { message: path }).toBe(1);
     }
@@ -346,6 +346,69 @@ describe.skipIf(!base)("database-backed screens in the browser", () => {
     await page.goto(base + "/payments");
     await expect.poll(() => page.locator("tbody tr").filter({ visible: true }).count()).toBeGreaterThanOrEqual(0);
     expect(await rowWith(page, "INV-2026-001").count()).toBe(0);
+    await page.context().close();
+  });
+
+  it("dashboard: real figures with a period filter and links to records", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/dashboard");
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0); // live: no preview banner
+    await expect.poll(() => visibleText(page, "Outstanding receivables").count()).toBeGreaterThan(0);
+    const panel = (title: string) => page.locator(".blueprint").filter({ visible: true }).filter({ has: page.getByRole("heading", { name: title, exact: true }) });
+    const recentOrders = panel("Recent orders");
+    await expect.poll(() => recentOrders.locator("tbody tr").filter({ hasText: /SO-|T-/ }).count()).toBeGreaterThan(0); // database orders, not fixture data
+    expect(await visibleText(page, "Euromarket Elbasani").count()).toBe(0);
+    const outstanding = panel("Outstanding invoices");
+    const firstOpen = outstanding.locator("tbody tr").first();
+    const number = ((await firstOpen.locator("td").first().textContent()) ?? "").trim();
+    expect(number).toMatch(/^(INV|TI)-/);
+    await page.locator(".seg-opt", { hasText: "This year" }).filter({ visible: true }).click();
+    await expect.poll(() => visibleText(page, /^1 Jan – \d+ \w+ \d{4} · net of VAT$/).count()).toBe(1);
+    await page.locator(".seg-opt", { hasText: /^Custom$/ }).filter({ visible: true }).click();
+    await page.locator("#db-from").fill("2019-01-01");
+    await page.locator("#db-to").fill("2019-01-31");
+    await expect.poll(() => visibleText(page, "1–31 Jan 2019 · net of VAT").count()).toBe(1);
+    await expect.poll(() => visibleText(page, "No invoices issued in this period.").count()).toBe(1);
+    await outstanding.locator("tbody tr").first().click();
+    await expect.poll(() => page.getByRole("dialog", { name: "Invoice details" }).getByRole("heading", { name: number }).count()).toBe(1);
+    await page.context().close();
+  });
+
+  it("reports: switches groupings, currency basis and receivables", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("manager@salesflow.test");
+    await page.goto(base + "/reports");
+    expect(await page.getByRole("note").filter({ visible: true }).count()).toBe(0);
+    await page.locator(".seg-opt", { hasText: /^Custom$/ }).filter({ visible: true }).click();
+    await page.locator("#rp-from").fill("2026-10-01");
+    await page.locator("#rp-to").fill("2026-10-31");
+    await expect.poll(() => rowWith(page, "Erion Hoxha").count()).toBe(1); // seeded invoices, issued 15 Oct
+    await expect.poll(() => visibleText(page, "4 issued invoices · by issue date").count()).toBe(1);
+    await page.locator(".seg-opt", { hasText: /^Customer$/ }).filter({ visible: true }).click();
+    await expect.poll(() => rowWith(page, "Restorant Liqeni SHPK").count()).toBe(1);
+    await page.locator(".seg-opt", { hasText: "EUR only" }).filter({ visible: true }).click();
+    await expect.poll(() => rowWith(page, "Distribucion Adriatik SHPK").count()).toBe(1);
+    expect(await rowWith(page, "Restorant Liqeni SHPK").count()).toBe(0);
+    await page.locator(".seg-opt", { hasText: "All → ALL" }).filter({ visible: true }).click();
+    await page.locator(".seg-opt", { hasText: "Overdue" }).filter({ visible: true }).click();
+    await expect.poll(() => page.locator("th", { hasText: "Days overdue" }).filter({ visible: true }).count()).toBe(1);
+    await expect.poll(() => page.locator("tbody tr").filter({ visible: true }).filter({ hasText: /^(INV|TI)-/ }).count()).toBeGreaterThan(0);
+    await page.locator(".seg-opt", { hasText: "Collections" }).filter({ visible: true }).click();
+    await expect.poll(() => rowWith(page, "20 Oct 2026").count()).toBe(1); // seeded payments
+    await page.context().close();
+  });
+
+  it("reports: a representative sees only their own figures", async (ctx) => {
+    if (!browser) return ctx.skip();
+    const page = await signedIn("rep.korce@salesflow.test");
+    await page.goto(base + "/reports");
+    await page.locator(".seg-opt", { hasText: /^Custom$/ }).filter({ visible: true }).click();
+    await page.locator("#rp-from").fill("2026-10-01");
+    await page.locator("#rp-to").fill("2026-10-31");
+    await page.locator(".seg-opt", { hasText: /^Customer$/ }).filter({ visible: true }).click();
+    await expect.poll(() => rowWith(page, "Restorant Liqeni SHPK").count()).toBe(1);
+    expect(await rowWith(page, "Market Alba SHPK").count()).toBe(0);
     await page.context().close();
   });
 

@@ -4,7 +4,6 @@ import { NAV_GROUPS, type SectionKey } from "@/lib/navigation";
 import { useActions, usePreview } from "@/store/preview-store";
 import { useRole } from "@/store/hooks";
 import { Icon } from "@/components/ui/icon";
-import { PreviewControls } from "./preview-controls";
 import { useGo } from "./use-go";
 
 /*
@@ -72,8 +71,7 @@ export function Sidebar({ section }: { section: SectionKey }) {
       <div className="flex flex-col gap-2 border-t border-divider p-[10px]">
         <div className={`px-1 text-[11px] leading-[1.4] text-neutral-700 ${label}`}>
           <span className="tag tag-accent mb-1">Partly preview</span>
-          <div>Customers, products, categories, employees, rates, orders, invoices and payments are live. Dashboard, reports and assistant use sample data.</div>
-          <PreviewControls />
+          <div>All business data is live from the database. The AI assistant still shows sample transcripts.</div>
         </div>
         <button
           type="button"

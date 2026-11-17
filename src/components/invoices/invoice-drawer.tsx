@@ -9,6 +9,7 @@ import { apiFetch, errorMessage } from "@/services/client/http";
 import { useApiQuery } from "@/services/client/query";
 import type { InvoiceDetailDto } from "@/services/client/types";
 import { useActions, usePreview } from "@/store/preview-store";
+import { useRole } from "@/store/hooks";
 import { Blueprint } from "@/components/ui/blueprint";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -62,6 +63,7 @@ function InvoiceHeader({ id }: { id: string }) {
 function InvoiceBody({ id }: { id: string }) {
   const q = useInvoice(id);
   const actions = useActions();
+  const role = useRole();
   const go = useGo();
   const [dialog, setDialog] = useState<"cancel" | "replace" | null>(null);
 
@@ -98,6 +100,8 @@ function InvoiceBody({ id }: { id: string }) {
     </a>
   );
   const anyAction = inv.actions.recordPayment || inv.actions.cancel || inv.actions.replace;
+  // Attribution is audit information the server sends to managers and admins only.
+  const showRecorder = role.canRegisterPayments;
 
   return (
     <>
@@ -138,8 +142,17 @@ function InvoiceBody({ id }: { id: string }) {
 
       <KeyValues
         items={[
-          ["Customer", link(ROUTES.customer(inv.customer.id), `${inv.customer.businessName} · ${inv.customer.nipt}`, () => go.customer(inv.customer.id))],
-          ["Billing address", inv.customer.billingAddress],
+          ["Customer", link(ROUTES.customer(inv.customer.id), `${inv.customer.billedName} · ${inv.customer.billedNipt}`, () => go.customer(inv.customer.id))],
+          [
+            "Billing address",
+            inv.customer.billingFromSnapshot ? (
+              inv.customer.billingAddress
+            ) : (
+              <span key="b">
+                {inv.customer.billingAddress} <span className="text-[12px] text-neutral-700">(customer&apos;s current address; not recorded on this older invoice)</span>
+              </span>
+            ),
+          ],
           ["Issued", formatDate(inv.issueDate)],
           ["Due", formatDate(inv.dueDate)],
           [
@@ -177,6 +190,7 @@ function InvoiceBody({ id }: { id: string }) {
                   <th>Reference</th>
                   <th className="text-right">Amount</th>
                   <th className="text-right">Balance after</th>
+                  {showRecorder ? <th>Recorded by</th> : null}
                 </tr>
               </thead>
               <tbody>
@@ -187,6 +201,7 @@ function InvoiceBody({ id }: { id: string }) {
                     <td>{p.reference ?? <span className="text-muted">—</span>}</td>
                     <td className="num whitespace-nowrap">{m(p.amount)}</td>
                     <td className="num whitespace-nowrap text-neutral-700">{formatDecimal(p.balanceAfter, 2, 2)}</td>
+                    {showRecorder ? <td className="whitespace-nowrap">{p.recordedBy ?? <span className="text-muted">Not recorded</span>}</td> : null}
                   </tr>
                 ))}
               </tbody>

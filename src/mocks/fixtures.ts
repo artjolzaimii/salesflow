@@ -213,12 +213,6 @@ export function buildPreviewDataset(today: string = PREVIEW_TODAY): SalesDataset
   return { employees, products, customers, orders, invoices, payments };
 }
 
-/** Monthly invoiced revenue history (Jan–Oct 2026) behind the dashboard chart, in 100k ALL. */
-export const REVENUE_HISTORY = {
-  company: [2610, 2480, 2920, 3050, 3310, 3760, 4120, 4300, 3580, 3400],
-  rep: [610, 580, 640, 700, 720, 810, 880, 910, 760, 730],
-};
-
 export const CUSTOMER_OPTIONS = {
   cities: ["Berat", "Durrës", "Elbasan", "Fier", "Korçë", "Pogradec", "Sarandë", "Shkodër", "Tiranë", "Vlorë"],
   types: ["Supermarket", "Grocery", "Restaurant", "Hotel", "Café", "Wholesale"] as BusinessType[],

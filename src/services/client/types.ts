@@ -5,6 +5,7 @@ import type { currentRates, listRates, rateForOrderDate } from "@/server/service
 import type { getOrder, listOrders, quoteOrder } from "@/server/services/orders";
 import type { getInvoice, listInvoices } from "@/server/services/invoices";
 import type { getPayment, listPayments } from "@/server/services/payments";
+import type { collectionsReport, dashboardSummary, receivablesReport, salesBreakdown } from "@/server/services/reports";
 
 /**
  * Response types derived from the services themselves (type-only imports; no
@@ -47,3 +48,8 @@ export type InvoiceDetailDto = Out<typeof getInvoice>;
 export type PaymentPage = Out<typeof listPayments>;
 export type PaymentRow = PaymentPage["items"][number];
 export type PaymentDetailDto = Out<typeof getPayment>;
+
+export type DashboardDto = Out<typeof dashboardSummary>;
+export type SalesReportDto = Out<typeof salesBreakdown>;
+export type CollectionsReportDto = Out<typeof collectionsReport>;
+export type ReceivablesReportDto = Out<typeof receivablesReport>;

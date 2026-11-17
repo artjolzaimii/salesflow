@@ -80,6 +80,7 @@ model User {
   employee          Employee?
   conversations     AIConversation[]
   cancelledInvoices Invoice[]        @relation("InvoiceCancelledBy")
+  recordedPayments  Payment[]        @relation("PaymentRecordedBy")
   createdAt         DateTime         @default(now()) @map("created_at")
   updatedAt         DateTime         @updatedAt @map("updated_at")
 
@@ -279,36 +280,40 @@ model OrderItem {
 }
 
 model Invoice {
-  id                 String        @id @default(uuid()) @db.Uuid
-  invoiceNumber      String        @unique @map("invoice_number") @db.VarChar(50)
-  orderId            String        @map("order_id") @db.Uuid
-  order              Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  currencyCode       String        @map("currency_code") @db.VarChar(3)
-  currency           Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
-  allPerUnit         Decimal       @map("all_per_unit") @db.Decimal(20, 8)
-  subtotalNet        Decimal       @map("subtotal_net") @db.Decimal(18, 2)
-  discountTotal      Decimal       @map("discount_total") @db.Decimal(18, 2)
-  taxableTotal       Decimal       @map("taxable_total") @db.Decimal(18, 2)
-  vatTotal           Decimal       @map("vat_total") @db.Decimal(18, 2)
-  total              Decimal       @db.Decimal(18, 2)
-  issueDate          DateTime      @map("issue_date") @db.Date
-  dueDate            DateTime      @map("due_date") @db.Date
-  status             InvoiceStatus @default(ISSUED)
+  id                     String        @id @default(uuid()) @db.Uuid
+  invoiceNumber          String        @unique @map("invoice_number") @db.VarChar(50)
+  orderId                String        @map("order_id") @db.Uuid
+  order                  Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  currencyCode           String        @map("currency_code") @db.VarChar(3)
+  currency               Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  allPerUnit             Decimal       @map("all_per_unit") @db.Decimal(20, 8)
+  subtotalNet            Decimal       @map("subtotal_net") @db.Decimal(18, 2)
+  discountTotal          Decimal       @map("discount_total") @db.Decimal(18, 2)
+  taxableTotal           Decimal       @map("taxable_total") @db.Decimal(18, 2)
+  vatTotal               Decimal       @map("vat_total") @db.Decimal(18, 2)
+  total                  Decimal       @db.Decimal(18, 2)
+  issueDate              DateTime      @map("issue_date") @db.Date
+  dueDate                DateTime      @map("due_date") @db.Date
+  status                 InvoiceStatus @default(ISSUED)
   /// Set when status becomes CANCELLED; the cancelled record itself is kept.
-  cancelledAt        DateTime?     @map("cancelled_at")
-  cancellationReason String?       @map("cancellation_reason") @db.VarChar(500)
-  cancelledById      String?       @map("cancelled_by_id") @db.Uuid
-  cancelledBy        User?         @relation("InvoiceCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
+  cancelledAt            DateTime?     @map("cancelled_at")
+  cancellationReason     String?       @map("cancellation_reason") @db.VarChar(500)
+  cancelledById          String?       @map("cancelled_by_id") @db.Uuid
+  cancelledBy            User?         @relation("InvoiceCancelledBy", fields: [cancelledById], references: [id], onDelete: Restrict)
   /// A replacement invoice points at the cancelled invoice it supersedes (each can be replaced once).
-  replacesInvoiceId  String?       @unique @map("replaces_invoice_id") @db.Uuid
-  replacesInvoice    Invoice?      @relation("InvoiceReplacement", fields: [replacesInvoiceId], references: [id], onDelete: Restrict)
-  replacedBy         Invoice?      @relation("InvoiceReplacement")
-  payments           Payment[]
-  createdAt          DateTime      @default(now()) @map("created_at")
+  replacesInvoiceId      String?       @unique @map("replaces_invoice_id") @db.Uuid
+  replacesInvoice        Invoice?      @relation("InvoiceReplacement", fields: [replacesInvoiceId], references: [id], onDelete: Restrict)
+  replacedBy             Invoice?      @relation("InvoiceReplacement")
+  /// Customer billing details copied at issue: { businessName, nipt, addressId, label, type, street, city, municipality, postalCode }.
+  /// NULL for invoices issued before Phase 5E (never back-filled). Immutable (guard_invoice).
+  billingAddressSnapshot Json?         @map("billing_address_snapshot")
+  payments               Payment[]
+  createdAt              DateTime      @default(now()) @map("created_at")
 
   @@unique([orderId], map: "invoices_one_issued_per_order", where: raw("status = 'ISSUED'"))
   @@index([orderId])
   @@index([status, dueDate])
+  @@index([status, issueDate])
   @@map("invoices")
 }
 
@@ -323,20 +328,24 @@ model InvoiceNumberCounter {
 }
 
 model Payment {
-  id             String        @id @default(uuid()) @db.Uuid
-  invoiceId      String        @map("invoice_id") @db.Uuid
-  invoice        Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
-  paymentDate    DateTime      @map("payment_date") @db.Date
-  amount         Decimal       @db.Decimal(18, 2)
-  currencyCode   String        @map("currency_code") @db.VarChar(3)
-  currency       Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
-  method         PaymentMethod
-  reference      String?       @db.VarChar(120)
+  id               String        @id @default(uuid()) @db.Uuid
+  invoiceId        String        @map("invoice_id") @db.Uuid
+  invoice          Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  paymentDate      DateTime      @map("payment_date") @db.Date
+  amount           Decimal       @db.Decimal(18, 2)
+  currencyCode     String        @map("currency_code") @db.VarChar(3)
+  currency         Currency      @relation(fields: [currencyCode], references: [code], onDelete: Restrict)
+  method           PaymentMethod
+  reference        String?       @db.VarChar(120)
   /// Client-supplied key: retrying the same request returns the original payment instead of a duplicate.
-  idempotencyKey String?       @unique @map("idempotency_key") @db.VarChar(100)
-  createdAt      DateTime      @default(now()) @map("created_at")
+  idempotencyKey   String?       @unique @map("idempotency_key") @db.VarChar(100)
+  /// User who recorded the payment; NULL for payments recorded before Phase 5E. Immutable (payments can't be updated).
+  recordedByUserId String?       @map("recorded_by_user_id") @db.Uuid
+  recordedBy       User?         @relation("PaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  createdAt        DateTime      @default(now()) @map("created_at")
 
   @@index([invoiceId, paymentDate])
+  @@index([paymentDate])
   @@map("payments")
 }
 

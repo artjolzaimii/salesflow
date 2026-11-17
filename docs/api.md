@@ -1,4 +1,4 @@
-# SalesFlow API (Phase 5A–5D)
+# SalesFlow API (Phase 5A–5E)
 
 Request path: browser → Route Handler (`src/app/api/**`) → service (`src/server/services/*`) → Prisma → PostgreSQL. React components never contain business rules; they call these routes through `src/services/client/` (fetch wrapper and a small query cache).
 
@@ -108,7 +108,7 @@ Rules:
 | Method & path | Permission | Notes |
 |---|---|---|
 | `GET /api/payments` | `payments.view` (scoped) | Filters `q` (reference, invoice number, customer, NIPT), `method`, `currency`, `invoiceId`, `customerId`, `from`/`to` (payment date). Sort: `paymentDate` (default, desc), `amount`, `createdAt`. |
-| `GET /api/payments/:id` | `payments.view` (scoped) | The payment, its invoice (with current paid/outstanding/status), and the invoice balance before and after it. |
+| `GET /api/payments/:id` | `payments.view` (scoped) | The payment, its invoice (with current paid/outstanding/status), and the invoice balance before and after it. `recordedBy` (who recorded it) is returned to managers and admins only; `null` for older payments. |
 | `POST /api/payments` | `payments.record` | `{ invoiceId, amount, paymentDate, method: CASH\|BANK_TRANSFER\|CARD\|OTHER, reference?, currencyCode?, idempotencyKey }`. 201 new, 200 replay. |
 
 Rules:
@@ -118,6 +118,19 @@ Rules:
 - **Reference:** required for every method except cash (≤ 120 chars).
 - **Idempotency:** one key per submission. The same key with the same invoice and amount returns the original payment; with anything else it is 409 `IDEMPOTENCY_KEY_REUSED`. The payment form keeps its key across network failures and starts a new one after any server answer.
 - **Immutability:** payments can't be edited or deleted (trigger).
+
+### Reports
+
+All amounts are decimal strings. Definitions, date fields, currency and rounding rules: [reporting.md](reporting.md). Every query is scoped to the caller (representatives: their own sales and their customers' orders). Permission: `reports.view` (all roles); collections also need `payments.view`, receivables `invoices.view`.
+
+Period parameters (dashboard, sales, collections): `period=today|week|month|year|custom` (default `month`), with `from` and `to` (YYYY-MM-DD, inclusive, ≤ 10 years) for `custom`. Business dates, Europe/Tirane.
+
+| Method & path | Notes |
+|---|---|
+| `GET /api/reports/dashboard` | KPIs (invoiced net with previous-period value, orders, pipeline, collections, active customers, receivables), orders by status, months of the year, sales by representative, payment-status split, top 5 products and customers, recent orders/invoices/payments and open invoices due soonest. All in ALL at stored rates. |
+| `GET /api/reports/sales` | `groupBy=trend\|customer\|product\|category\|rep\|currency` (revenue trend and customer, product, category and representative performance), `basis=ALL_EQ\|ALL\|EUR\|USD`, `page`, `pageSize` ≤ 100. Summary: invoiced (net, VAT, gross), collected, pipeline, outstanding, overdue. |
+| `GET /api/reports/collections` | Payments by payment date: `groupBy=trend\|method\|currency\|customer`, `basis`, paging. Converted at each invoice's rate. |
+| `GET /api/reports/receivables` | Open invoices as of today with days overdue, representative and ALL equivalent; aging buckets. `overdueOnly`, `basis`, `currency`, `customerId`, paging. |
 
 ### Phase 5A routes
 

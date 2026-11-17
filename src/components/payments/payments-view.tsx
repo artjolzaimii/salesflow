@@ -101,6 +101,7 @@ export function PaymentsView() {
                 <th>Method</th>
                 <th className="text-right">Amount</th>
                 <th>Cur.</th>
+                {role.canRegisterPayments ? <th>Recorded by</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -113,6 +114,7 @@ export function PaymentsView() {
                   <td>{PAYMENT_METHOD_LABEL[p.method]}</td>
                   <td className="num whitespace-nowrap">{formatDecimal(p.amount, 2, 2)}</td>
                   <td>{p.currencyCode}</td>
+                  {role.canRegisterPayments ? <td className="whitespace-nowrap">{p.recordedBy ?? <span className="text-muted">Not recorded</span>}</td> : null}
                 </tr>
               ))}
             </tbody>
