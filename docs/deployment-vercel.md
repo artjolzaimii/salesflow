@@ -14,7 +14,7 @@ This is the concrete deployment path:
 | Prisma 7 + `@prisma/adapter-pg` | Works through Supabase's **transaction pooler** (port 6543). There are no session-level advisory locks, `LISTEN`, `SET` or prepared-statement names. Every lock is `pg_advisory_xact_lock` inside a transaction. | None |
 | Pool size | Vercel Functions (Fluid compute) reuse instances; the pooler multiplexes them. | `DATABASE_POOL_MAX=5` |
 | **Database TLS** | `pg` 8.2x treats `sslmode=require` as full verification. Supabase signs with its own CA, so connections failed with `SELF_SIGNED_CERT_IN_CHAIN`, which was verified against Supabase's pooler. | `DATABASE_SSL_CA` (the project's CA certificate, PEM) makes the app verify the certificate and hostname against that CA. The production check refuses a Supabase URL without it. |
-| Statement timeout | `pg` sends `statement_timeout` as a startup parameter. If the pooler rejects it, set `DATABASE_STATEMENT_TIMEOUT_MS=0`; the role keeps a 30 s timeout either way (`scripts/db/supabase.sql`). | Optional `0` value |
+| Statement timeout | `pg` sends `statement_timeout` as a startup parameter; Supabase's pooler silently ignores it (verified). The 30 s limit comes from the `salesflow_app` role (`scripts/db/supabase.sql`, verified effective through port 6543). | None (`0` available to skip sending it) |
 | **Supabase Data API** | By default Supabase grants its public `anon`/`authenticated` roles full access to new tables in `public` and serves them over REST/GraphQL. Unchanged, anyone holding the public anon key could read `users` (password hashes) and all financial tables. | Turn the Data API off, **and** run `scripts/db/supabase.sql` (revokes those grants, now and for future tables) |
 | Least privilege | Migrations run as `postgres` (owner); the app runs as `salesflow_app` (rows only, can't drop/alter tables or triggers). | `scripts/db/supabase.sql` |
 | Build | A clean checkout builds without reaching the database (verified with an unreachable `DATABASE_URL`). `prisma generate` runs on install. | None |
@@ -77,15 +77,15 @@ Never run `migrate dev`, `migrate reset`, `db push` or the seed against producti
 set -a; source ~/.config/salesflow/production.env; set +a
 CA=~/.config/salesflow/supabase-ca.crt
 
-# 1. Apply the 10 committed migrations (try verified TLS first, see the note below)
-DATABASE_URL="$MIGRATION_DATABASE_URL&sslcert=$CA&sslaccept=strict" npx prisma migrate deploy
+# 1. Apply the committed migrations (the URL must end in ?sslmode=require, see the note below)
+DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate deploy
 DATABASE_URL="$MIGRATION_DATABASE_URL" npx prisma migrate status
 
 # 2. Lock down the Data API roles, create salesflow_app (run again after future migrations)
 PGSSLMODE=verify-full PGSSLROOTCERT=$CA psql "${MIGRATION_DATABASE_URL%%\?*}" -v app_password="$APP_DB_PASSWORD" -f scripts/db/supabase.sql
 ```
 
-**TLS for migrations.** Prisma's schema engine treats `sslmode=require` as "encrypt, don't verify", and it ignores `verify-full`. Verification needs `sslcert=<ca>&sslaccept=strict`. If that is rejected with Supabase's CA (`P1011`), run the one-time migration with plain `sslmode=require`: the connection is still encrypted. The running application always verifies the certificate.
+**TLS for migrations (verified 2026-11-18).** Prisma's schema engine treats `sslmode=require` as "encrypt, don't verify", ignores `verify-full`, and its strict mode (`sslcert=…&sslaccept=strict`) rejects Supabase's CA with `P1011`. So migrations run encrypted but unverified. Supabase refuses non-TLS connections, so encryption is guaranteed. `psql` (`PGSSLMODE=verify-full`) and the running application verify the certificate and hostname.
 
 ## Step 5: Vercel project and environment variables
 
@@ -108,6 +108,8 @@ PGSSLMODE=verify-full PGSSLROOTCERT=$CA psql "${MIGRATION_DATABASE_URL%%\?*}" -v
 Optional (defaults are fine): `ASSISTANT_DAILY_USD_TOTAL` (50), `ASSISTANT_DAILY_USD_PER_USER` (5), `DATABASE_STATEMENT_TIMEOUT_MS`, `RATE_LIMIT_*`.
 
 **Do not set:** `AUTH_TRUST_HOST`, `SEED_DEMO_PASSWORD`, `ASSISTANT_PROVIDER`, `ASSISTANT_FALLBACKS`, `MFA_ALLOW_DERIVED_KEY` or `SALESFLOW_CONFIG_CHECK`.
+
+**Reference data.** Migrations also create the reference currencies (ALL, EUR, USD; migration `20261123090000_reference_currencies`). Exchange rates for EUR and USD are business data: enter them in the app before creating orders in those currencies. ALL needs no rate.
 
 ## Step 6: Deploy
 
@@ -139,7 +141,7 @@ The script creates the administrator with **no usable password** and prints a **
 | Login, MFA | Sign in as the administrator; enable MFA; sign out and in with a code |
 | Dashboard, customers, products, orders, invoices, payments, reports | Open each screen (empty until data is entered) |
 | Assistant | Opens and reports configured / not configured. **Asking a question is a paid API call**: only with approval |
-| Operations | `GET /api/ops/summary` (admin): migrations 10 applied, 0 failed |
+| Operations | `GET /api/ops/summary` (admin): all migrations applied, 0 failed |
 | Database security | As `anon` nothing is readable: the `supabase.sql` report shows no rows for `anon`/`authenticated` |
 
 ## Afterwards

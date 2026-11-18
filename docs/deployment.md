@@ -141,7 +141,7 @@ Every release runs these steps in order:
 4. Roll out `salesflow:<sha>` with `DATABASE_URL=<app url>`. New instances take traffic only after `/api/health` returns 200.
 5. Watch the logs and health for about 15 minutes (§9).
 
-**Migration compatibility (reviewed in Phase 6C).** All ten migrations are additive and data-preserving:
+**Migration compatibility (reviewed in Phase 6C).** All migrations are additive and data-preserving (the eleventh, `20261123090000_reference_currencies`, inserts the ALL/EUR/USD reference rows the first production deployment was missing):
 - Each one creates tables, columns, indexes, constraints, triggers or functions, and backfills where needed (invoice numbering, billing snapshots and payment attribution in Phase 5).
 - None of them drops or rewrites existing business data.
 

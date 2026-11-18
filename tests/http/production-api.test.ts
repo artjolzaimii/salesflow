@@ -84,7 +84,7 @@ describe.skipIf(!base)("production limits and operations over HTTP", () => {
       auth: { activeSessions: expect.any(Number) },
       assistant: { estimatedSpendUsdLast24h: expect.any(Number) },
     });
-    expect(summary.database.migrations.applied).toBe(10);
+    expect(summary.database.migrations.applied).toBe(11);
     expect(JSON.stringify(summary)).not.toMatch(/@salesflow|password|secret|token|sk-ant/i);
     expect((await api.get("/api/ops/summary", (await signIn(MANAGER, DEMO_PASSWORD))!)).status).toBe(403);
     expect((await api.get("/api/ops/summary")).status).toBe(401);

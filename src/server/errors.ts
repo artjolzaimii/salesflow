@@ -1,3 +1,4 @@
+import { logEvent } from "./log";
 import { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -107,6 +108,9 @@ export function databaseAvailabilityError(e: unknown): AppError | null {
   return null;
 }
 
+/** The constraint name from a PostgreSQL foreign-key message (for operator logs; no data values). */
+const foreignKeyName = (message: string) => message.match(/foreign key constraint "([^"]+)"/)?.[1]?.slice(0, 80) ?? null;
+
 export function mapDatabaseError(e: unknown): unknown {
   const unavailable = databaseAvailabilityError(e);
   if (unavailable) return unavailable;
@@ -115,7 +119,16 @@ export function mapDatabaseError(e: unknown): unknown {
     if (hit) return conflict(hit[0], hit[1]);
   }
   if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2003") {
-    return conflict("IN_USE", "This record is referenced by other records and cannot be removed.");
+    // PostgreSQL reports both directions of a foreign-key failure with 23503:
+    // deleting a row that is still referenced ("update or delete on table … is still
+    // referenced"), and writing a row that points at something missing ("insert or
+    // update on table … violates foreign key constraint").
+    const message = pgCause(e)?.originalMessage ?? "";
+    if (/^update or delete on table/i.test(message) || /still referenced/i.test(message)) {
+      return conflict("IN_USE", "This record is referenced by other records and cannot be removed.");
+    }
+    logEvent("db_reference_missing", { constraint: foreignKeyName(message) }, "warn");
+    return conflict("REFERENCE_NOT_FOUND", "Something this change refers to doesn't exist (it may have been removed). Reload the page and try again.");
   }
   const cause = pgCause(e);
   if (cause?.originalCode !== "P0001" || !cause.originalMessage) return e;
