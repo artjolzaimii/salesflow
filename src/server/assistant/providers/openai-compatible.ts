@@ -9,8 +9,15 @@ import { ProviderError, type ChatBlock, type ChatMessage, type CompletionRequest
  * - The key comes from ASSISTANT_API_KEY on the server; it never reaches the browser.
  * - Same contract as the Claude adapter: the tool loop, the read-only tools and
  *   every limit are unchanged; only the wire format differs.
- * - Retries 429, 5xx and connection failures twice with backoff (like the Anthropic
- *   SDK); upstream error bodies are never passed on (they can echo request data).
+ * - Retries 5xx and connection failures twice with backoff (like the Anthropic SDK).
+ *   Rate limits (429) are waited out up to three times, as long as the provider's
+ *   Retry-After is at most a minute: free tiers (Groq: 8,000 tokens per minute)
+ *   often need a short pause between the rounds of one question. The whole
+ *   question stays bounded by its own time limit.
+ * - Tool schemas are sent compacted (no `$schema`, no regex `pattern` where a
+ *   `format` says the same): about a third fewer tokens per round. Arguments are
+ *   still validated in full by the tools' Zod schemas on the server.
+ * - Upstream error bodies are never passed on (they can echo request data).
  */
 export class OpenAICompatibleProvider implements LlmProvider {
   readonly name = "openai-compatible";
@@ -33,7 +40,7 @@ export class OpenAICompatibleProvider implements LlmProvider {
     const body = JSON.stringify({
       model: this.cfg.model,
       messages: [{ role: "system", content: `${req.systemStable}\n\n${req.systemContext}` }, ...req.messages.flatMap(toWire)],
-      tools: req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema } })),
+      tools: req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: compactSchema(t.inputSchema) } })),
       tool_choice: "auto",
       max_tokens: req.maxOutputTokens,
       temperature: 0.2,
@@ -80,12 +87,33 @@ export class OpenAICompatibleProvider implements LlmProvider {
         }
         status = -1; // connection failure
       }
-      const retryable = status === -1 || status === 429 || status >= 500;
+      if (status === 429) {
+        // Wait out a short rate limit (the provider says how long); give up on long ones.
+        if (attempt >= 3 || retryAfterSec > MAX_RATE_LIMIT_WAIT_SEC) throw fromStatus(status);
+        await sleep(retryAfterSec > 0 ? retryAfterSec * 1000 + 250 : this.retryDelayMs * 2 ** attempt, signal);
+        continue;
+      }
+      const retryable = status === -1 || status >= 500;
       if (!retryable || attempt >= 2) throw fromStatus(status);
-      const wait = status === 429 && retryAfterSec > 0 && retryAfterSec <= 10 ? retryAfterSec * 1000 : this.retryDelayMs * 2 ** attempt;
-      await sleep(wait, signal);
+      await sleep(this.retryDelayMs * 2 ** attempt, signal);
     }
   }
+}
+
+/** Longest Retry-After (seconds) worth waiting for within one question. */
+const MAX_RATE_LIMIT_WAIT_SEC = 60;
+
+/** JSON Schema without parts the model doesn't need: `$schema`, and regex `pattern`s next to a `format`. */
+export function compactSchema(schema: unknown): unknown {
+  if (Array.isArray(schema)) return schema.map(compactSchema);
+  if (!schema || typeof schema !== "object") return schema;
+  const o = schema as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (k === "$schema" || (k === "pattern" && typeof o.format === "string")) continue;
+    out[k] = compactSchema(v);
+  }
+  return out;
 }
 
 interface WireToolCall {

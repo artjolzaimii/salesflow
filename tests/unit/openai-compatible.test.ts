@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { assistantConfig } from "@/server/assistant/config";
-import { OpenAICompatibleProvider } from "@/server/assistant/providers/openai-compatible";
+import { compactSchema, OpenAICompatibleProvider } from "@/server/assistant/providers/openai-compatible";
 import { toolSpecs } from "@/server/assistant/tools";
 import { ProviderError, type CompletionRequest } from "@/server/assistant/types";
 import { checkConfig } from "@/server/config-check";
@@ -91,6 +91,39 @@ describe("OpenAI-compatible adapter", () => {
     expect(await new OpenAICompatibleProvider(cfg, down, 1).complete(req()).catch((x: unknown) => x)).toMatchObject({ kind: "unavailable" });
   });
 
+  it("waits out a short rate limit (free tiers) but not a long one", async () => {
+    let calls = 0;
+    const waits: number[] = [];
+    let last = Date.now();
+    const limited = (async () => {
+      const now = Date.now(); if (calls) waits.push(now - last); last = now;
+      return ++calls < 3 ? reply(429, {}, { "retry-after": "1" }) : reply(200, { choices: [{ finish_reason: "stop", message: { content: "ok" } }] });
+    }) as typeof globalThis.fetch;
+    expect((await new OpenAICompatibleProvider(cfg, limited, 1).complete(req())).content).toEqual([{ type: "text", text: "ok" }]);
+    expect(calls).toBe(3);
+    expect(Math.min(...waits)).toBeGreaterThanOrEqual(1000); // honoured Retry-After
+    let longCalls = 0;
+    const long = (async () => (longCalls++, reply(429, {}, { "retry-after": "3600" }))) as typeof globalThis.fetch;
+    expect(await new OpenAICompatibleProvider(cfg, long, 1).complete(req()).catch((x: unknown) => x)).toMatchObject({ kind: "rate_limited" });
+    expect(longCalls).toBe(1); // a daily quota isn't waited for
+  });
+
+  it("sends compact tool schemas (fewer tokens), validation stays on the server", async () => {
+    const schema = { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", properties: { from: { type: "string", format: "date", pattern: "^very-long$", description: "Start" }, code: { type: "string", pattern: "^[A-Z]{3}$" } } };
+    expect(compactSchema(schema)).toEqual({ type: "object", properties: { from: { type: "string", format: "date", description: "Start" }, code: { type: "string", pattern: "^[A-Z]{3}$" } } });
+    const full = JSON.stringify(toolSpecs().map((t) => t.inputSchema)).length;
+    const compact = JSON.stringify(toolSpecs().map((t) => compactSchema(t.inputSchema))).length;
+    expect(compact).toBeLessThan(full * 0.75);
+  });
+
+  it("allows a longer question time on a rate-limited free tier", () => {
+    const saved = process.env.ASSISTANT_PROVIDER;
+    process.env.ASSISTANT_PROVIDER = "openai-compatible";
+    expect(assistantConfig().requestTimeoutMs).toBe(180_000);
+    if (saved === undefined) delete process.env.ASSISTANT_PROVIDER; else process.env.ASSISTANT_PROVIDER = saved;
+    expect(assistantConfig().requestTimeoutMs).toBe(90_000);
+  });
+
   it("times out with the request signal", async () => {
     const hang = ((_u: unknown, init?: RequestInit) =>
       new Promise((_, reject) => init?.signal?.addEventListener("abort", () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }))))) as typeof globalThis.fetch;
@@ -114,7 +147,6 @@ describe("assistant provider configuration", () => {
     const groq = { ...BASE, ASSISTANT_PROVIDER: "openai-compatible", ASSISTANT_BASE_URL: "https://api.groq.com/openai/v1", ASSISTANT_API_KEY: "k", ASSISTANT_MODEL: "m" };
     const ok = checkConfig(groq);
     expect(ok.errors).toEqual([]);
-    expect(ok.warnings.join()).toMatch(/\$0/);
     expect(ok.warnings.join()).not.toMatch(/ANTHROPIC_API_KEY/);
     expect(checkConfig({ ...groq, ASSISTANT_BASE_URL: "http://api.groq.com/openai/v1" }).errors.join()).toMatch(/https/);
     expect(checkConfig({ ...groq, ASSISTANT_API_KEY: undefined }).errors.join()).toMatch(/ASSISTANT_API_KEY/);

@@ -2,7 +2,7 @@ generator client {
   provider        = "prisma-client"
   output          = "../src/generated/prisma"
   // Partial unique index: at most one ISSUED invoice per order (cancelled ones stay on record).
-  previewFeatures = ["partialIndexes"]
+  previewFeatures = ["partialIndexes", "relationJoins"]
 }
 
 datasource db {

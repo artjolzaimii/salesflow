@@ -79,7 +79,6 @@ export function checkConfig(env: Env): ConfigReport {
     else if (base.protocol !== "https:") errors.push("ASSISTANT_BASE_URL must use https.");
     if (!env.ASSISTANT_API_KEY) errors.push("ASSISTANT_API_KEY is not set for the openai-compatible assistant provider.");
     if (!env.ASSISTANT_MODEL) errors.push("ASSISTANT_MODEL is not set for the openai-compatible assistant provider.");
-    if (!env.ASSISTANT_INPUT_USD_PER_MTOK && !env.ASSISTANT_OUTPUT_USD_PER_MTOK) warnings.push("Assistant model costed at $0 (free tier): daily USD caps don't limit it; the hourly and concurrency limits still apply.");
   }
   if (env.ASSISTANT_FALLBACKS === "default") warnings.push("ASSISTANT_FALLBACKS=default: refusals are answered by another model (approved?).");
   if (!env.CLIENT_IP_HEADER) warnings.push("CLIENT_IP_HEADER is not set: per-IP sign-in and password-reset limits are off; rely on hosting-layer limits.");

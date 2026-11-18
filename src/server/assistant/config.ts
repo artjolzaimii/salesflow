@@ -58,7 +58,7 @@ export function assistantConfig() {
     /** Tool executions per question; further calls get an error result. */
     maxToolCalls: int("ASSISTANT_MAX_TOOL_CALLS", 8, 1, 30),
     /** Whole question, all rounds and tools included. */
-    requestTimeoutMs: int("ASSISTANT_TIMEOUT_MS", 90_000, 5_000, 600_000),
+    requestTimeoutMs: int("ASSISTANT_TIMEOUT_MS", openai ? 180_000 : 90_000, 5_000, 280_000),
     /** One model call. */
     providerTimeoutMs: int("ASSISTANT_PROVIDER_TIMEOUT_MS", 60_000, 2_000, 600_000),
     /** One tool execution. */
