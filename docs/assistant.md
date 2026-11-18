@@ -17,6 +17,8 @@ Browser ─► /api/assistant/* ─► services/assistant.ts (loop, limits, pers
   - `tool_choice: auto`.
   - The server-side refusal fallback is **off** (Phase 6A). With `ASSISTANT_FALLBACKS=default` (an explicit approval), a policy refusal is retried by the API on another model in the same call (beta `server-side-fallback-2026-07-01`). It's off by default because it silently changes which model, at which price, answers financial questions.
 - **Provider abstraction:** `src/server/assistant/types.ts` defines provider-neutral messages and an `LlmProvider` interface. `providers/anthropic.ts` is the only file that knows the Anthropic API. Another provider means one new adapter; tools, the loop and the UI don't change.
+- **OpenAI-compatible provider (added at deployment):** `providers/openai-compatible.ts` speaks the Chat Completions API with function tools, so any compatible endpoint works: Groq (the current production choice, free tier), Gemini's OpenAI endpoint, OpenRouter, or a self-hosted server. It uses plain `fetch` with no extra dependency, retries 429/5xx/connection failures twice, and never passes upstream error bodies on. The tools, the loop, the limits and the grounding checks are identical for both providers. Free open models are weaker than Claude at multi-step questions; figures still come only from the tools.
+- **Data:** questions, tool results (customer names, amounts) and answers go to the configured provider. Check its data terms: for example, Gemini's free tier uses prompts to improve Google products, while Groq states it does not train on API data.
 - **Why not a hosted agent:** the loop is deliberately our own small, bounded one on the Messages API. The tools must run inside SalesFlow against its database with the user's permissions, and conversations must live in SalesFlow's own tables.
 
 ## Configuration
@@ -25,8 +27,12 @@ Set these on the server only (`.env`, or the host's secret store). Never use a `
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | (none) | **Required** to enable the assistant. Without it the screen says the assistant isn't configured and `POST …/messages` answers 503 `ASSISTANT_NOT_CONFIGURED`. |
-| `ASSISTANT_MODEL` | `claude-opus-5-5` | Claude model ID. |
+| `ASSISTANT_PROVIDER` | `anthropic` | `anthropic` (Claude) or `openai-compatible` (`scripted` is for automated tests only). |
+| `ANTHROPIC_API_KEY` | (none) | **Required** for `anthropic`. Without the provider's settings the screen says the assistant isn't configured and `POST …/messages` answers 503 `ASSISTANT_NOT_CONFIGURED`. |
+| `ASSISTANT_BASE_URL` | (none) | `openai-compatible` only: the API base, e.g. `https://api.groq.com/openai/v1` (https required in production). |
+| `ASSISTANT_API_KEY` | (none) | `openai-compatible` only: the endpoint's API key. |
+| `ASSISTANT_MODEL` | `claude-opus-5-5` | Model ID. **Required** for `openai-compatible` (a model of that endpoint that supports tool calling). |
+| `ASSISTANT_INPUT_USD_PER_MTOK` / `ASSISTANT_OUTPUT_USD_PER_MTOK` | `0` | `openai-compatible` only: prices for cost estimates and the daily USD caps. `0` suits a free tier (the hourly and concurrency limits still apply). |
 | `ASSISTANT_EFFORT` | `medium` | `low`/`medium`/`high`/`xhigh`/`max`; anything else omits the parameter. |
 | `ASSISTANT_FALLBACKS` | `off` | `default` enables the server-side refusal fallback (needs explicit approval). |
 | `ASSISTANT_MAX_OUTPUT_TOKENS` | 8000 | Per model call (includes thinking). |

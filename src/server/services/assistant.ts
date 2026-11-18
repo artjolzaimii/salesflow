@@ -12,6 +12,7 @@ import { linkedRecords, unverifiedFigures } from "@/server/assistant/grounding";
 import { SYSTEM_PROMPT, systemContext } from "@/server/assistant/prompt";
 import { AnthropicProvider } from "@/server/assistant/providers/anthropic";
 import { ScriptedProvider } from "@/server/assistant/providers/scripted";
+import { OpenAICompatibleProvider } from "@/server/assistant/providers/openai-compatible";
 import { runTool, toolSpecs, type RecordRef } from "@/server/assistant/tools";
 import { ProviderError, type ChatBlock, type ChatMessage, type LlmProvider, type Usage } from "@/server/assistant/types";
 
@@ -41,7 +42,8 @@ export function setProviderForTests(p: LlmProvider | null) {
 function providerFor(cfg: AssistantConfig): LlmProvider | null {
   if (override) return override;
   if (cfg.provider === "scripted") return new ScriptedProvider();
-  return cfg.apiKeyPresent ? new AnthropicProvider(cfg) : null;
+  if (!cfg.apiKeyPresent) return null;
+  return cfg.provider === "openai-compatible" ? new OpenAICompatibleProvider(cfg) : new AnthropicProvider(cfg);
 }
 
 /** What the screen needs to know before the first question (no secrets). */
@@ -156,7 +158,10 @@ async function history(conversationId: string, cfg: AssistantConfig): Promise<Ch
 const MAX_PRICE = Object.values(PRICES).reduce((m, p) => (p.output > m.output ? p : m));
 
 function costUsd(model: string, u: Usage): number {
-  const price = PRICES[model] ?? MAX_PRICE;
+  const cfg = assistantConfig();
+  // Models of an OpenAI-compatible endpoint are priced from configuration (0 for free tiers).
+  const custom = cfg.provider === "openai-compatible" ? { ...cfg.customPrice, cacheRead: cfg.customPrice.input, cacheWrite: cfg.customPrice.input } : null;
+  const price = PRICES[model] ?? custom ?? MAX_PRICE;
   const usd = (u.inputTokens * price.input + u.outputTokens * price.output + u.cacheReadTokens * price.cacheRead + u.cacheWriteTokens * price.cacheWrite) / 1e6;
   return Math.round(usd * 1e6) / 1e6;
 }
@@ -179,7 +184,7 @@ export async function sendMessage(p: Principal, conversationId: string, raw: z.o
   if (!conversation) throw notFound("Conversation");
 
   const provider = providerFor(cfg);
-  if (!provider) throw new AppError(503, "ASSISTANT_NOT_CONFIGURED", "The AI assistant isn't configured on this server. An administrator must set ANTHROPIC_API_KEY.");
+  if (!provider) throw new AppError(503, "ASSISTANT_NOT_CONFIGURED", "The AI assistant isn't configured on this server. An administrator must set the assistant's provider settings (docs/assistant.md).");
 
   // Strictly increasing timestamps keep message order stable within one request.
   let clock = Date.now();

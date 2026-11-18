@@ -70,7 +70,17 @@ export function checkConfig(env: Env): ConfigReport {
   if (env.ASSISTANT_PROVIDER === "scripted") errors.push("ASSISTANT_PROVIDER=scripted is the offline test provider; remove it.");
 
   // Optional features and limits
-  if (!env.ANTHROPIC_API_KEY) warnings.push("ANTHROPIC_API_KEY is not set: the AI assistant is disabled.");
+  const provider = env.ASSISTANT_PROVIDER || "anthropic";
+  if (!["anthropic", "openai-compatible", "scripted"].includes(provider)) errors.push(`ASSISTANT_PROVIDER=${provider.slice(0, 40)} is not supported (anthropic or openai-compatible).`);
+  if (provider === "anthropic" && !env.ANTHROPIC_API_KEY) warnings.push("ANTHROPIC_API_KEY is not set: the AI assistant is disabled.");
+  if (provider === "openai-compatible") {
+    const base = url(env.ASSISTANT_BASE_URL);
+    if (!base) errors.push("ASSISTANT_BASE_URL is not set: the OpenAI-compatible endpoint, e.g. https://api.groq.com/openai/v1.");
+    else if (base.protocol !== "https:") errors.push("ASSISTANT_BASE_URL must use https.");
+    if (!env.ASSISTANT_API_KEY) errors.push("ASSISTANT_API_KEY is not set for the openai-compatible assistant provider.");
+    if (!env.ASSISTANT_MODEL) errors.push("ASSISTANT_MODEL is not set for the openai-compatible assistant provider.");
+    if (!env.ASSISTANT_INPUT_USD_PER_MTOK && !env.ASSISTANT_OUTPUT_USD_PER_MTOK) warnings.push("Assistant model costed at $0 (free tier): daily USD caps don't limit it; the hourly and concurrency limits still apply.");
+  }
   if (env.ASSISTANT_FALLBACKS === "default") warnings.push("ASSISTANT_FALLBACKS=default: refusals are answered by another model (approved?).");
   if (!env.CLIENT_IP_HEADER) warnings.push("CLIENT_IP_HEADER is not set: per-IP sign-in and password-reset limits are off; rely on hosting-layer limits.");
 

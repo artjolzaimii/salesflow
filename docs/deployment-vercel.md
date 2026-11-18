@@ -102,8 +102,10 @@ PGSSLMODE=verify-full PGSSLROOTCERT=$CA psql "${MIGRATION_DATABASE_URL%%\?*}" -v
 | `AUTH_URL` | `https://<project>.vercel.app` (or your custom domain later; update it when the domain changes) |
 | `MFA_ENCRYPTION_KEY` | `openssl rand -base64 32`, **also stored in your password manager**: losing it disables every enrolled MFA |
 | `CLIENT_IP_HEADER` | `x-real-ip` |
-| `ANTHROPIC_API_KEY` | Your key (optional; without it the assistant reports "not configured") |
-| `ASSISTANT_MODEL` | `claude-opus-5-5` (the current default) |
+| `ANTHROPIC_API_KEY` | Claude: your key (optional; without a provider the assistant reports "not configured") |
+| `ASSISTANT_MODEL` | Claude: `claude-opus-5-5` (the default) |
+
+**Free alternative (current production setup): Groq.** Instead of `ANTHROPIC_API_KEY`, set `ASSISTANT_PROVIDER=openai-compatible`, `ASSISTANT_BASE_URL=https://api.groq.com/openai/v1`, `ASSISTANT_API_KEY=<Groq key>` and `ASSISTANT_MODEL=<a Groq model with tool use>`. Answers are costed at $0, so the daily USD caps don't apply; the hourly and concurrency limits do. See docs/assistant.md for the data terms.
 
 Optional (defaults are fine): `ASSISTANT_DAILY_USD_TOTAL` (50), `ASSISTANT_DAILY_USD_PER_USER` (5), `DATABASE_STATEMENT_TIMEOUT_MS`, `RATE_LIMIT_*`.
 

@@ -19,13 +19,31 @@ const num = (name: string, fallback: number, min: number, max: number) => {
 export const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
 export type Effort = (typeof EFFORTS)[number];
 
+export const PROVIDERS = ["anthropic", "openai-compatible", "scripted"] as const;
+export type ProviderName = (typeof PROVIDERS)[number];
+
 export function assistantConfig() {
   const effort = process.env.ASSISTANT_EFFORT ?? "medium";
+  const provider = ((PROVIDERS as readonly string[]).includes(process.env.ASSISTANT_PROVIDER ?? "") ? process.env.ASSISTANT_PROVIDER : "anthropic") as ProviderName;
+  const openai = provider === "openai-compatible";
   return {
-    /** "anthropic" (default) or "scripted" (deterministic offline provider for automated tests). */
-    provider: (process.env.ASSISTANT_PROVIDER || "anthropic") as "anthropic" | "scripted",
-    apiKeyPresent: !!process.env.ANTHROPIC_API_KEY,
-    model: process.env.ASSISTANT_MODEL || "claude-opus-5-5",
+    /**
+     * "anthropic" (default, Claude via ANTHROPIC_API_KEY), "openai-compatible" (any
+     * Chat Completions endpoint: ASSISTANT_BASE_URL + ASSISTANT_API_KEY + ASSISTANT_MODEL,
+     * e.g. Groq), or "scripted" (deterministic offline provider for automated tests).
+     */
+    provider,
+    apiKeyPresent: openai ? !!process.env.ASSISTANT_API_KEY && !!process.env.ASSISTANT_BASE_URL && !!process.env.ASSISTANT_MODEL : !!process.env.ANTHROPIC_API_KEY,
+    /** openai-compatible only (server-side; never sent to the browser). */
+    baseUrl: process.env.ASSISTANT_BASE_URL ?? "",
+    apiKey: openai ? (process.env.ASSISTANT_API_KEY ?? "") : "",
+    model: process.env.ASSISTANT_MODEL || (openai ? "" : "claude-opus-5-5"),
+    /**
+     * USD per million tokens for models outside PRICES (openai-compatible). Free tiers
+     * cost nothing, so the default is 0; set real prices for a paid endpoint so the
+     * daily spend caps stay meaningful.
+     */
+    customPrice: { input: num("ASSISTANT_INPUT_USD_PER_MTOK", 0, 0, 1_000), output: num("ASSISTANT_OUTPUT_USD_PER_MTOK", 0, 0, 1_000) },
     /** "" disables the effort parameter (for models that don't accept it). */
     effort: (EFFORTS as readonly string[]).includes(effort) ? (effort as Effort) : null,
     /**

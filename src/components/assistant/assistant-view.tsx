@@ -149,7 +149,7 @@ export function AssistantView() {
 
         <div className="flex flex-1 flex-col gap-[18px] overflow-y-auto px-[18px] py-5" aria-live="polite">
           {!configured ? (
-            <AlertBanner>The AI assistant isn&apos;t configured on this server yet. An administrator needs to set ANTHROPIC_API_KEY; see docs/assistant.md.</AlertBanner>
+            <AlertBanner>The AI assistant isn&apos;t configured on this server yet. An administrator needs to set the AI provider settings; see docs/assistant.md.</AlertBanner>
           ) : null}
           {activeId && active.loading ? <SkeletonRows /> : null}
           {activeId && active.error && !conversation ? <AlertBanner>{errorMessage(active.error)}</AlertBanner> : null}
